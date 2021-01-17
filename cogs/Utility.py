@@ -115,9 +115,9 @@ class Utility(commands.Cog):
 
                             except discord.Forbidden:
                                 await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
-                await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
-                if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
-                    await conn.commit()
+                        await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
+                        if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
+                            await conn.commit()
             else:
                 await ctx.send(f"You must be a ws commander to use this command, and the specified role must be below your top role.")
         else:
@@ -618,7 +618,7 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
                     send.sort(key = lambda ago: key_ago(ago, 1))
                 elif sorting.lower() == 'tr':
                     send.sort(key = lambda ago: key_ago(ago, 1), reverse=True)
-                elif sorthing.lower() == 'w':
+                elif sorting.lower() == 'w':
                     send.sort(key = lambda ago: key_ago(ago, 2))
                 elif sorting.lower() == 'wr':
                     send.sort(key = lambda ago: key_ago(ago, 2), reverse=True)
