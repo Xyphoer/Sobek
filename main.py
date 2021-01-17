@@ -10,7 +10,7 @@ intents = discord.Intents.all()
 
 cogwheels = ['cogs.Utility', 'cogs.General']
 
-bot = commands.Bot(command_prefix = '?', intents=intents, case_insensitive=True)
+bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True)
 
 
 if __name__ == "__main__":
@@ -81,9 +81,10 @@ async def data_storage():
             await cursor.execute('''CREATE TABLE IF NOT EXISTS Memorial 
                 (tracking INT PRIMARY KEY, WS1_DA, WS2_DA, WS1_H, WS2_H)''')
             await cursor.execute('''CREATE TABLE IF NOT EXISTS lastseen
-                (member, seen)''')
+                (member, seen, ws)''')
+            #await cursor.execute("ALTER TABLE lastseen ADD COLUMN ws text")
             #await cursor.execute("INSERT OR REPLACE INTO Memorial(tracking) VALUES(1)")
 
 asyncio.run(data_storage())
 
-bot.run('TOKEN')
+bot.run('NzM4MjE0MjAyMTAzMzAwMTg2.XyIpjQ.4LQs096uEUGGF_3lbHb2CaZOSGI')

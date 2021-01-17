@@ -19,8 +19,8 @@ class Utility(commands.Cog):
 
     @tasks.loop(seconds=5)
     async def last_seen(self):
-        dragon_army = self.bot.get_guild(677917703213678602)  #change to actual
-        dragon = dragon_army.get_role(716430845061365850)   #change to actual
+        dragon_army = self.bot.get_guild(443747736555225102)  #change to actual 443747736555225102
+        dragon = dragon_army.get_role(444548579839705089)   #change to actual 444548579839705089
         async with asqlite.connect('SobekStorage1.db') as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute('SELECT member FROM lastseen')
@@ -32,7 +32,7 @@ class Utility(commands.Cog):
                             if member.id in m1:
                                 await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
                             else:
-                                await cursor.execute('INSERT INTO lastseen (member, seen) VALUES(?, ?)', (member.id, datetime.now(timezone.utc)))
+                                await cursor.execute('INSERT INTO lastseen (member, seen, ws) VALUES(?, ?, ?)', (member.id, datetime.now(timezone.utc), 'Never'))
                             await conn.commit()
                     elif member.id in m1:
                         await cursor.execute('DELETE FROM lastseen WHERE member=?', (member.id))
@@ -91,17 +91,33 @@ class Utility(commands.Cog):
             if commander in ctx.author.roles and role.position < ctx.author.top_role.position:
                 added = []
                 removed = []
-                for member in members:
-                    try:
-                        if role in member.roles:
-                            await member.remove_roles(role)
-                            removed.append(member.display_name)
-                        else:
-                            await member.add_roles(role)
-                            added.append(member.display_name)
-                    except discord.Forbidden:
-                        await ctx.send('I have insufficient permissions to perform this task.')
+
+                async with asqlite.connect('SobekStorage1.db') as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute("SELECT member FROM lastseen")
+                        m_id = await cursor.fetchall()
+                        m1 = [m[0] for m in m_id]
+
+                        for member in members:
+                            try:                        
+                                if role in member.roles:
+                                    await member.remove_roles(role)
+                                    removed.append(member.display_name)
+                                else:
+                                    await member.add_roles(role)
+                                    added.append(member.display_name)
+
+                                if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
+                                    if member.id in m1:
+                                        await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
+                                    else:
+                                        await cursor.execute('INSERT INTO lastseen (member, seen, ws) VALUES(?, ?, ?)', (member.id, 'Never', datetime.now(timezone.utc)))
+
+                            except discord.Forbidden:
+                                await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
                 await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
+                if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
+                    await conn.commit()
             else:
                 await ctx.send(f"You must be a ws commander to use this command, and the specified role must be below your top role.")
         else:
@@ -512,16 +528,16 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
         Has four methods of sorting. a (alphabetical), ar (alphabetical reverse), t (time), tr (time reverse). Defaults to a.
         
         Any specified roles must be after all (if any) specified members.
-        Order of inputs: sorting (optional, a (alphabetical), ar (alphabetical reverse), t (time), tr (time reverse)) members (optional, any amount) roles (optional, any amount)
+        Order of inputs: sorting (optional, a (alphabetical), ar (alphabetical reverse), t (time), tr (time reverse), w (ws activity), wr (ws activity reverse)) members (optional, any amount) roles (optional, any amount)
 
         Ex. ?ls member1 member2 "multi word role" role2
         Ex. ?lastseen role
         EX. ?ls tr member role1 role2
         
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
-        dragon = ctx.guild.get_role(716430845061365850) #444548579839705089
+        dragon = ctx.guild.get_role(444548579839705089) #444548579839705089
         member1 = []
-        if sorting not in ('a', 'ar', 't', 'tr'):
+        if sorting not in ('a', 'ar', 't', 'tr', 'w', 'wr'):
             try:
                 sorting = await commands.MemberConverter().convert(ctx, str(sorting))
                 member1.append(sorting)
@@ -551,31 +567,39 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
             async with conn.cursor() as cursor:
                 await cursor.execute("SELECT * FROM lastseen")
                 m = await cursor.fetchall()
-                m1 = {m0[0]: m0[1] for m0 in m}
+                m1 = {m0[0]: (m0[1], m0[2]) for m0 in m}
                 final = {}
                 for member in member1:
                     if member.id in m1:
-                        datetime_object = datetime.strptime(m1[member.id], '%Y-%m-%d %H:%M:%S.%f%z')
-                        delta_difference = datetime.now(timezone.utc) - datetime_object
-                        m_amount, h_amount = math.modf(delta_difference.seconds / 3600)
-                        days, hours, minutes = delta_difference.days, int(h_amount), int(m_amount * 60)
-                        if days != 0:
-                            time_since_seen = f'{days}d {hours}h {minutes}m'
-                        elif hours != 0:
-                            time_since_seen = f'{hours}h {minutes}m'
-                        elif minutes != 0:
-                            time_since_seen = f'{minutes}m'
-                        else:
-                            time_since_seen = 'Now'
-                        final[f'{member.name} ({member.display_name})'] = time_since_seen
+                        container = []
+                        for element in m1[member.id]:
+                            if element != 'Never':
+                                datetime_object = datetime.strptime(element, '%Y-%m-%d %H:%M:%S.%f%z')
+                                delta_difference = datetime.now(timezone.utc) - datetime_object
+                                m_amount, h_amount = math.modf(delta_difference.seconds / 3600)
+                                days, hours, minutes = delta_difference.days, int(h_amount), int(m_amount * 60)
+                                if days != 0:
+                                    time_since_seen = f'{days}d {hours}h {minutes}m'
+                                elif hours != 0:
+                                    time_since_seen = f'{hours}h {minutes}m'
+                                elif minutes != 0:
+                                    time_since_seen = f'{minutes}m'
+                                else:
+                                    time_since_seen = 'Now'
+                                container.append(time_since_seen)
+                            else:
+                                container.append('Never')
+                            final[f'{member.name} ({member.display_name})'] = ', __last ws__: '.join(container)
                 send = []
                 for record in final:
                     send.append(f'**{record}**: {final[record]}')
 
-                def key_ago(info):
-                    info = info.split(':')[-1].strip().split()
+                def key_ago(info, index):
+                    info = info.split(':')[index].strip(', __last ws__').strip().split()
                     if info == 'Now':
                         return 0
+                    elif info == 'Never':
+                        return float('inf')
                     total_ago = 0
                     for amount in info:
                         if 'd' in amount:
@@ -591,9 +615,13 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
                 elif sorting.lower() == 'ar':
                     send.sort(key = str.lower, reverse=True)
                 elif sorting.lower() == 't':
-                    send.sort(key = lambda ago: key_ago(ago))
+                    send.sort(key = lambda ago: key_ago(ago, 1))
                 elif sorting.lower() == 'tr':
-                    send.sort(key = lambda ago: key_ago(ago), reverse=True)
+                    send.sort(key = lambda ago: key_ago(ago, 1), reverse=True)
+                elif sorthing.lower() == 'w':
+                    send.sort(key = lambda ago: key_ago(ago, 2))
+                elif sorting.lower() == 'wr':
+                    send.sort(key = lambda ago: key_ago(ago, 2), reverse=True)
 
                 ls_embed = discord.Embed(title='Last Seen',
                     description = '\n'.join(send))
