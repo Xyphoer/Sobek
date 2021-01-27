@@ -554,6 +554,8 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
                     sorting = 'a'
         for x in members:
             member1.append(x)
+        for x in roles:
+            roles1.append(x)
         if roles1 == []:
             roles1 = [dragon]
         if member1 == []:
