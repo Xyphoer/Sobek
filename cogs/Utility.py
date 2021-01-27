@@ -537,6 +537,7 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
         dragon = ctx.guild.get_role(444548579839705089) #444548579839705089
         member1 = []
+        roles1 = []
         if sorting not in ('a', 'ar', 't', 'tr', 'w', 'wr'):
             try:
                 sorting = await commands.MemberConverter().convert(ctx, str(sorting))
@@ -546,21 +547,21 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
                 print(e)
                 try:
                     sorting = await commands.RoleConverter().convert(ctx, str(sorting))
-                    roles.append(sorting)
+                    roles1.append(sorting)
                     sorting = 'a'
                 except:
                     await ctx.send(f'{sorting} is not recognized as as a sorting method. Defaulting to sorting method a.')
                     sorting = 'a'
         for x in members:
             member1.append(x)
-        if roles == []:
-            roles = [dragon]
+        if roles1 == []:
+            roles1 = [dragon]
         if member1 == []:
-            for role in roles:
+            for role in roles1:
                 for memb in role.members:
                     member1.append(memb)
-        elif roles != [dragon]:
-            for role in roles:
+        elif roles1 != [dragon]:
+            for role in roles1:
                 for memb in role.members:
                     member1.append(memb)
         async with asqlite.connect('SobekStorage1.db') as conn:
