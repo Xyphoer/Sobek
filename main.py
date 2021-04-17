@@ -87,4 +87,7 @@ async def data_storage():
 
 asyncio.run(data_storage())
 
-bot.run('NzM4MjE0MjAyMTAzMzAwMTg2.XyIpjQ.4LQs096uEUGGF_3lbHb2CaZOSGI')
+with open('token.txt') as token_file:
+    TOKEN = token_file.read()
+
+bot.run(TOKEN)
