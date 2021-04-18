@@ -8,14 +8,14 @@ from asqlite import asqlite
 
 intents = discord.Intents.all()
 
-cogwheels = ['cogs.Utility', 'cogs.General']
+cogwheels = ('Utility', 'General')
 
 bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True)
 
 
 if __name__ == "__main__":
     for wheel in cogwheels:
-        bot.load_extension(wheel)
+        bot.load_extension(f'cogs.{wheel}')
 
 @bot.event
 async def on_ready():
@@ -23,23 +23,21 @@ async def on_ready():
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def reload(ctx):
-    """Reloads the extentions."""
+async def reload(ctx, *wheels):
+    """Reloads a specified extention, or all extentions."""
+    if not wheels: wheels = cogwheels
     m = await ctx.send('reloading...')
     for wheel in cogwheels:
         try:
-            bot.reload_extension(wheel)
+            bot.reload_extension(f'cogs.{wheel}')
         except Exeption as e:
-            await ctx.send(f'Error reloading {wheel}')
-            print(e)
-    await m.edit(content = 'reloaded')
+            await ctx.send(f'Error reloading {wheel}:\n{e}')
+    await m.edit(content = f'reloaded {", ".join(wheels)}')
 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def shutdown(ctx):
-    """Shuts down the bot.
-
-    This can only be done by administrators."""
+    """Shuts down the bot."""
     embed=discord.Embed(title='Shutdown',
         description='Are you sure you want to shutdown Sobek?')
     embed.set_footer(text='This is not a restart. The bot will not reconnect until Nyx_2#8763 is available to connect it.')
@@ -91,5 +89,3 @@ with open('token.txt') as token_file:
     TOKEN = token_file.read()
 
 bot.run(TOKEN)
-
-#test changes
