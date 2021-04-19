@@ -6,11 +6,51 @@ import logging
 import json
 from asqlite import asqlite
 
+
+class MyHelpCommand(commands.HelpCommand):
+
+    def __init__(self):
+        super().__init__()
+
+    async def send_bot_help(self, mapping):
+        embed = discord.Embed(title='Help Menu', color=11761390)
+        embed.set_footer(text = 'Type ?help command for more info on a command.\nYou can also type ?help category for more info on a category.')
+
+        for cog in mapping:
+            commands = f"{cog.description if cog else ''}\n\n" + '\n'.join(['-' + command.name for command in await self.filter_commands(mapping[cog], sort=True)])
+            name = f'__**{cog.qualified_name if cog else cog}:**__'
+            embed.add_field(name = name, value = commands)
+
+        await self.context.send(embed=embed)
+
+    async def send_cog_help(self, cog):
+
+        description = []
+
+        for command in await self.filter_commands(cog.get_commands(), sort=True):
+            description.append(f'\n\n__**{command.qualified_name}**__: {command.short_doc}')
+
+        embed = discord.Embed(title=f'{cog.qualified_name}',
+            description = cog.description + ''.join(description),
+            color=11761390)
+        embed.set_footer(text = 'Type ?help command for more info on a command.\nYou can also type ?help category for more info on a category.')
+
+        await self.context.send(embed=embed)
+
+    async def send_command_help(self, command):
+        embed = discord.Embed(title = f'{command.name} - {" | ".join(command.aliases)}',
+            description = f'{self.get_command_signature(command)}\n\n{command.help}',
+            color = 11761390)
+        embed.set_footer(text = 'Type ?help command for more info on a command.\nYou can also type ?help category for more info on a category.')
+
+        await self.context.send(embed=embed)
+
+
 intents = discord.Intents.all()
 
 cogwheels = ('Utility', 'General')
 
-bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True)
+bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True, help_command=MyHelpCommand())
 
 
 if __name__ == "__main__":
