@@ -1,14 +1,12 @@
 import discord
 from discord.ext import tasks, commands
 import asyncio
-import json
 import decimal
 import math
 import re
-import textwrap
 from asqlite import asqlite
 from datetime import datetime, timezone
-import time
+from typing import Optional
 
 class Utility(commands.Cog):
     """Commands orientated around general utility, such as certain role management, self editing, and message clearing."""
@@ -16,6 +14,11 @@ class Utility(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.last_seen.start()
+
+    def is_commander():
+        def predicate(ctx):
+            return 446277329300357122 in [role.id for role in ctx.author.roles] or ctx.author.id == 341331627839848448
+        return commands.check(predicate)
 
     @tasks.loop(seconds=5)
     async def last_seen(self):
@@ -86,6 +89,8 @@ class Utility(commands.Cog):
                             if self.bot.user in members:
                                 members.remove(self.bot.user)
                             break
+                    else:
+                        await ctx.send(f'Could not find a preperation message in the last 10 messages in {preperation.mention}.')
         commander = discord.utils.get(ctx.guild.roles, name='ws commander')
         if role != None:
             if commander in ctx.author.roles and role.position < ctx.author.top_role.position:
@@ -124,37 +129,39 @@ class Utility(commands.Cog):
             await ctx.send(f"Could not find role. Please ensure you're in the right category.")
 
     @commands.command()
-    async def clear(self, ctx, amount: int = None, old_first: bool = True):
-        """Clears all or a specified amount of messages in a channel.
+    @is_commander()
+    async def clear(self, ctx, amount: Optional[int] = None, old_first: Optional[bool] = True, members: commands.Greedy[discord.Member] = None):
+        """Clears all or a specified amount (to search through) of messages in a channel.
 
         Provide no arguments to clear all. 
-        Ex. `!clear`
-        Provide an integer to clear a specified amount. 
-        Ex. `!clear 10`
+        Ex. `?clear`
+        Provide an integer to clear from a specified amount. 
+        Ex. `?clear 10`
         Provide "True" or "False" to change between oldest first, and newest first. Default is true, which corresponds to oldest first.
-        Ex. `!clear 10 False`
+        Ex. `?clear 10 False`
+        Provide any number of members (via id, mention, or display name) to only remove messages from those members.
+        Ex. `?clear 10 False 341331627839848448`
+        No arguments are required. You may leave out any arguments and provide the others, so long as you maintain the proper order for the arguments you do provide.
 
-        Never clears pinned messages.
-        Be sure to provide arguments in the shown order. Integer then True/False."""
-        commander = discord.utils.get(ctx.guild.roles, name='ws commander')
-        allowed_channels = ['testing', 'orders', 'dump-n-grab', 'observations', 'rocket-support']
-        if commander in ctx.author.roles:
-            if ctx.channel.name in allowed_channels:
-                def no_pins(m):
+        Never clears pinned messages."""
+        allowed_channels = ('testing', 'orders', 'dump-n-grab', 'observations', 'rocket-support')
+        if ctx.channel.name in allowed_channels:
+            if members: final_message = f'Cleared from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, oldest first = {old_first}.'
+            else: final_message = f'Cleared from {amount if amount else "all"} messages, oldest first = {old_first}.'
+            def check(m):
+                if not members:
                     return m.pinned == False
-                try:
-                    await ctx.message.delete()
-                    await ctx.channel.purge(limit=amount, check=no_pins, oldest_first=old_first)
-                except discord.Forbidden:
-                    await ctx.send('I am missing the required permissions to perform this actions.')
-                else:
-                    if amount == None:
-                        amount = 'all'
-                    await ctx.send(f'Cleared {amount} messages, oldest first = {old_first}.', delete_after = 10.0)
+
+                return m.pinned == False and m.author in members
+            try:
+                await ctx.message.delete()
+                await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
+            except discord.Forbidden:
+                await ctx.send('I am missing the required permissions to perform this actions.')
             else:
-                await ctx.send(f'Command not permitted in this channel.')
+                await ctx.send(final_message, delete_after = 10.0)
         else:
-            await ctx.send('You must be a ws commander to use this command.')
+            await ctx.send(f'Command not permitted in this channel.')
 
     @commands.command()
     async def WhiteStar(self, ctx, starting, category: discord.Role = None, size: int = 'Undetermined'):
@@ -694,41 +701,6 @@ When an enemy ship dies, a ping will be sent in #observations when their return 
     #         await ctx.send(f'```py\n{result}```')
     #     except Exception as e:
     #         await ctx.send(f'```py\n{e}```')
-
-    @ws.error
-    async def ws_error(self, ctx, error):
-        if isinstance(error, commands.RoleNotFound):
-            await ctx.send(error)
-        else:
-            print(error)
-
-    @clear.error
-    async def clear_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send('Input error. Ensure you are using the proper format and order. See `?help` for details.')
-        else:
-            print(error)
-
-    @WhiteStar.error
-    async def WhiteStar_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('Input error. Ensure you are using the proper format and order. See `?help` for details.')
-        else:
-            print(error)
-
-    @memorial.error
-    async def memorial_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('Input error. Ensure you are using the proper format and order. See `?help` for details.')
-        else:
-            print(error)
-
-    @m.error
-    async def m_error(self, ctx, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send('Input error. This command can accept a role. This must be a role mention or role id. See `?help` for details.')
-        else:
-            print(error)
 
 def setup(bot):
     bot.add_cog(Utility(bot))

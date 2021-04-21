@@ -113,6 +113,9 @@ async def shutdown(ctx):
             cancelled.set_footer(text=f'Called by {ctx.author.name}  {ctx.author.id}.')
             await m.edit(embed=cancelled)
 
+async def on_command_error(ctx, error):
+    await ctx.send(error)
+
 async def data_storage():
     async with asqlite.connect('SobekStorage1.db') as conn:
         async with conn.cursor() as cursor:
