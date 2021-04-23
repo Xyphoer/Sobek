@@ -57,15 +57,16 @@ class Utility(commands.Cog):
 
                 await conn.commit()
 
-    @commands.command()
-    async def ws(self, ctx, members: commands.Greedy[discord.Member] = [], role: discord.Role = None, prep_message: discord.Message = None):
-        """Adds, removes, or clears a specific role for mentioned members.
+    @commands.command(aliases = ['ws', 'er'])
+    @checks.is_commander()
+    async def edit_roles(self, ctx, role: Optional[discord.Role] = None, members: commands.Greedy[discord.Member] = [], prep_message: discord.Message = None):
+        """Adds, removes, or clears a specific role for specified members.
 
         Adds or removes a specified role to/from specified members. 
         If no members are specified removes the role from all members with the specified role.
         If no role is specified defaults to the role assosiated with the category (if there is one).
 
-        If any role is specified, it must be specified last.
+        If a role is specified, it must be specified first.
         You can also specify a message at the end. If specified it must be of the format “{channel ID}-{message ID}” (retrieved by shift-clicking on “Copy ID”) or the message link.
             If the message is in the same channel however, just the message id is fine. If ?ws is specified with no members, and no member has the role, the message will be the last bot message (limit 10 messages) in white-star-preperation.
             The message will add all users who reacted to the message to the affected users.
@@ -103,9 +104,8 @@ class Utility(commands.Cog):
                             break
                     else:
                         await ctx.send(f'Could not find a preperation message in the last 10 messages in {preperation.mention}.')
-        commander = discord.utils.get(ctx.guild.roles, name='ws commander')
         if role != None:
-            if commander in ctx.author.roles and role.position < ctx.author.top_role.position:
+            if role.position < ctx.author.top_role.position:
                 added = []
                 removed = []
 
@@ -122,7 +122,7 @@ class Utility(commands.Cog):
                         await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
                 await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
             else:
-                await ctx.send(f"You must be a ws commander to use this command, and the specified role must be below your top role.")
+                await ctx.send(f"The specified role must be below your top role.")
         else:
             await ctx.send(f"Could not find role. Please ensure you're in the right category.")
 
