@@ -119,10 +119,10 @@ async def on_command_error(ctx, error):
 async def data_storage():
     async with asqlite.connect('SobekStorage1.db') as conn:
         async with conn.cursor() as cursor:
-            await cursor.execute('''CREATE TABLE IF NOT EXISTS Memorial 
-                (tracking INT PRIMARY KEY, WS1_DA, WS2_DA, WS1_H, WS2_H)''')
             await cursor.execute('''CREATE TABLE IF NOT EXISTS lastseen
-                (member, seen, ws)''')
+                (member, seen, ws, status)''')
+            ##await cursor.execute("ALTER TABLE lastseen ADD COLUMN status text")
+            ##await cursor.execute("DROP TABLE Memorial")
             #await cursor.execute("ALTER TABLE lastseen ADD COLUMN ws text")
             #await cursor.execute("INSERT OR REPLACE INTO Memorial(tracking) VALUES(1)")
 

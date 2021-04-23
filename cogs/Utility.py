@@ -1,49 +1,61 @@
 import discord
 from discord.ext import tasks, commands
 import asyncio
-import decimal
 import math
 import re
 from asqlite import asqlite
 from datetime import datetime, timezone
 from typing import Optional
+from .utils import formats, checks
 
 class Utility(commands.Cog):
     """Commands orientated around general utility, such as certain role management, self editing, and message clearing."""
 
     def __init__(self, bot):
         self.bot = bot
-        self.last_seen.start()
 
-    def is_commander():
-        def predicate(ctx):
-            return 446277329300357122 in [role.id for role in ctx.author.roles] or ctx.author.id == 341331627839848448
-        return commands.check(predicate)
+    @commands.Cog.listener()
+    async def on_member_update(self, before, after):
+        
+        #Dragon, WS1-DA, WS2-DA, WS1-H, WS2-H
+        tracked_roles = (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
 
-    @tasks.loop(seconds=5)
-    async def last_seen(self):
-        dragon_army = self.bot.get_guild(443747736555225102)  #change to actual 443747736555225102
-        dragon = dragon_army.get_role(444548579839705089)   #change to actual 444548579839705089
+        before_roles = formats.compare_containers(tracked_roles, before.roles)
+        after_roles = formats.compare_containers(tracked_roles, after.roles)
+
+        if not before_roles and not after_roles:
+            return
+        
+        if before.raw_status == after.raw_status and before_roles == after_roles:
+            return
+
+        ws_role = False
+        if formats.compare_containers(tracked_roles[1:]. before_roles) and not formats.compare_containers(tracked_roles[1:], after_roles): ws_role = datetime.now(timezone.utc)
+        elif formats.compare_containers(tracked_roles[1:], after_roles): ws_role = 'Now'
+
         async with asqlite.connect('SobekStorage1.db') as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute('SELECT member FROM lastseen')
                 m_id = await cursor.fetchall()
                 m1 = [m[0] for m in m_id]
-                for member in dragon_army.members:
-                    if dragon in member.roles:
-                        if member.raw_status != 'offline':
-                            if member.id in m1:
-                                await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
-                            else:
-                                await cursor.execute('INSERT INTO lastseen (member, seen, ws) VALUES(?, ?, ?)', (member.id, datetime.now(timezone.utc), 'Never'))
-                            await conn.commit()
-                    elif member.id in m1:
-                        await cursor.execute('DELETE FROM lastseen WHERE member=?', (member.id))
-                        await conn.commit()
 
-    @last_seen.before_loop
-    async def before_last_seen(self):
-        await self.bot.wait_until_ready()
+                if not after_roles:
+                    await cursor.execute('DELETE FROM lastseen WHERE member=?', (member.id))
+                    await conn.commit()
+                    return
+
+                if after.id in m1:
+                    await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, member.id))
+                else:
+                    await cursor.execute('INSERT INTO lastseen (member, status) VALUES(?, ?)', (member.id, after.raw_status))
+                if ws_role:
+                    await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (ws_role, member.id))
+                if before.raw_status != 'offline' and after.raw_status == 'offline':
+                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
+                elif before.raw_status == 'offline' and after.raw_status != 'offline':
+                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', ('Now', member.id))
+
+                await conn.commit()
 
     @commands.command()
     async def ws(self, ctx, members: commands.Greedy[discord.Member] = [], role: discord.Role = None, prep_message: discord.Message = None):
@@ -97,39 +109,25 @@ class Utility(commands.Cog):
                 added = []
                 removed = []
 
-                async with asqlite.connect('SobekStorage1.db') as conn:
-                    async with conn.cursor() as cursor:
-                        await cursor.execute("SELECT member FROM lastseen")
-                        m_id = await cursor.fetchall()
-                        m1 = [m[0] for m in m_id]
+                for member in members:
+                    try:
+                        if role in member.roles:
+                            await member.remove_roles(role)
+                            removed.append(member.display_name)
+                        else:
+                            await member.add_roles(role)
+                            added.append(member.display_name)
 
-                        for member in members:
-                            try:                        
-                                if role in member.roles:
-                                    await member.remove_roles(role)
-                                    removed.append(member.display_name)
-                                else:
-                                    await member.add_roles(role)
-                                    added.append(member.display_name)
-
-                                if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
-                                    if member.id in m1:
-                                        await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
-                                    else:
-                                        await cursor.execute('INSERT INTO lastseen (member, seen, ws) VALUES(?, ?, ?)', (member.id, 'Never', datetime.now(timezone.utc)))
-
-                            except discord.Forbidden:
-                                await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
-                        await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
-                        if role.name in ('WS1 - DA', 'WS2 - DA', 'WS1 - H', 'WS2 - H'):
-                            await conn.commit()
+                    except discord.Forbidden:
+                        await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
+                await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
             else:
                 await ctx.send(f"You must be a ws commander to use this command, and the specified role must be below your top role.")
         else:
             await ctx.send(f"Could not find role. Please ensure you're in the right category.")
 
     @commands.command()
-    @is_commander()
+    @checks.is_commander()
     async def clear(self, ctx, amount: Optional[int] = None, old_first: Optional[bool] = True, members: commands.Greedy[discord.Member] = None):
         """Clears all or a specified amount (to search through) of messages in a channel.
 
