@@ -16,7 +16,7 @@ class General(commands.Cog):
     async def random(self, ctx):
         """Randomly displays a members profile picture."""
         member = random.choice(ctx.guild.members)
-        embed = discord.Embed(description=f'||{member.name}#{member.discriminator} (nick={member.nick})||')
+        embed = discord.Embed(description=f'||{member.mention}||')
         embed.set_image(url = member.avatar_url)
         await ctx.send(embed=embed)
 
@@ -82,29 +82,16 @@ class General(commands.Cog):
         """Adds or removes the specified RS roles.
 
         Usage: ?RS4"""
-        try:
-            role = discord.utils.get(ctx.message.guild.roles, name=f'RS{ctx.message.content[3:]}')
-            if role != None:
-                if role in ctx.author.roles:
-                    await ctx.author.remove_roles(role)
-                    await ctx.send(f"RS{ctx.message.content[3:]} removed.")
-                else:
-                    await ctx.author.add_roles(role)
-                    await ctx.send(f"RS{ctx.message.content[3:]} added.")
+        role = discord.utils.get(ctx.message.guild.roles, name=f'RS{ctx.message.content[3:]}')
+        if role != None:
+            if role in ctx.author.roles:
+                await ctx.author.remove_roles(role)
+                await ctx.send(f"RS{ctx.message.content[3:]} removed.")
             else:
-                await ctx.send(f'Role RS{ctx.message.content[3:]} not found.')
-        except discord.Forbidden:
-            await ctx.send('I have insufficient permissions to perform this task.')
-
-    @nickname.error
-    async def nickname_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(error)
-
-    @remind.error
-    async def remind_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send(error)
+                await ctx.author.add_roles(role)
+                await ctx.send(f"RS{ctx.message.content[3:]} added.")
+        else:
+            await ctx.send(f'Role RS{ctx.message.content[3:]} not found.')
 
 def setup(bot):
     bot.add_cog(General(bot))
