@@ -48,7 +48,7 @@ class MyHelpCommand(commands.HelpCommand):
 
 intents = discord.Intents.all()
 
-cogwheels = ('Utility', 'General')
+cogwheels = ('utility', 'general')
 
 bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True, help_command=MyHelpCommand())
 
@@ -115,6 +115,9 @@ async def shutdown(ctx):
 
 async def on_command_error(ctx, error):
     await ctx.send(error)
+    #test common errors that don't provide a helpful message and send custom messages for those.
+    #^ Especially command not found. Don't display that.
+    #discord.Forbidden means bot doesn't have perms.
 
 async def data_storage():
     async with asqlite.connect('SobekStorage1.db') as conn:
