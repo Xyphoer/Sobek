@@ -45,7 +45,8 @@ class Utility(commands.Cog):
                     return
 
                 if after.id in m1:
-                    await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, member.id))
+                    if after.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, member.id))
+                    elif before.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (before.raw_status, member.id))
                 else:
                     await cursor.execute('INSERT INTO lastseen (member, status) VALUES(?, ?)', (member.id, after.raw_status))
                 if ws_role:
@@ -162,12 +163,14 @@ class Utility(commands.Cog):
             await ctx.send(f'Command not permitted in this channel.')
 
     @commands.command()
-    async def WhiteStar(self, ctx, starting, category: discord.Role = None, size: int = 'Undetermined'):
+    @checks.is_commander()
+    async def WhiteStar(self, ctx, starting, category: Optional[discord.Role] = None, size: Optional[int] = 'Undetermined', *, comment = None):
         """Sends a new WhiteStar message to #white-star-preperation.
 
         Requires a a starting time.
         Can take in a role. If no role is specified will take the role associated with the channel category.
-        Can take in an integer for the size of the star. If no integer is specified the size will be 'Undetermined'. You must specify a role if you wish to specify a size.
+        Can take in an integer for the size of the star. If no integer is specified the size will be 'Undetermined'.
+        Can take in an optional comment to be included.
         
         Order of inputs: starting, role (optional), size (optional)
 
@@ -183,30 +186,25 @@ class Utility(commands.Cog):
         if category == None:
             category = discord.utils.get(ctx.guild.roles, name=f'{ctx.channel.category}')
         if category != None:
-            commander = discord.utils.get(ctx.guild.roles, name='ws commander')
-            if commander in ctx.author.roles:
-                embed = discord.Embed(title='New White Star', 
-                    description=f'__FC__: {ctx.author.mention}\n__Size__: {size}\n__Starting on__: {starting}\n__Category__: {category}')
-                embed.set_footer(text="""
-                    Please leave a reaction if you are interested in participating and will be able to respond within 1.5h of being pinged during your waking hours.
+            comm = ''
+            if comment: comm = f'__Comment__: {comment}'
+            embed = discord.Embed(title='New White Star', 
+                description=f'__FC__: {ctx.author.mention}\n__Size__: {size}\n__Starting on__: {starting}\n__Category__: {category.mention}\n{comm}')
+            embed.set_footer(text="""
+                Please leave a reaction if you are interested in participating and will be able to respond within 1.5h of being pinged during your waking hours.
 Note, reactions are simply to determine who will be the most active.
 Anyone with their ws scanner on may be selected and will be expected to participate.
 If you will not be able to respond within the 1.5h response time during your waking hours, but do not want to be left out of the star, contact the FC in general discussion.""")
-                for channel in ctx.guild.channels:
-                    if channel.name == 'white-star-preparation':
-                        try:
-                            await channel.send(f"""{ctx.guild.default_role} Below is an upcoming White Star. 
+            channel = bot.get_channel()  #ws_prep_channel id.
+            dragon = discord.utils.get(ctx.guild.roles, name = 'Dragon') #consider switching to id.
+            if channel:
+                await channel.send(f"""{dragon.mention} Below is an upcoming White Star. 
 Please keep in mind that everyone is expeced to participate approximately once a month. 
 If you are interested in leading a White Star, please contact an Officer or ws commander.""")
-                            m = await channel.send(embed=embed)
-                            await m.add_reaction('<:soldiersalute:614653371718041600>')
-                            await ctx.send('Created.')
-                        except discord.Forbidden:
-                            await ctx.send('I do not have the appropriate permissions to perform this operation.')
-                        return
-                await ctx.send('Could not find `white-star-preparation`')
-            else:
-                await ctx.send('You must be a ws commander to use this command.')
+                m = await channel.send(embed=embed)
+                await m.add_reaction('<:soldiersalute:614653371718041600>')
+                await ctx.send('Created.')
+            else: await ctx.send('Could not find `white-star-preparation`')
         else:
             await ctx.send('No role was specified.')
 
@@ -226,48 +224,46 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         EX. ?ls tr member role1 role2
         
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
-        dragon = ctx.guild.get_role(444548579839705089) #444548579839705089
-        member1 = []
-        roles1 = []
+        status = {
+        'online' = '<:status_online:835533703718764545>',
+        'streaming' = '<:status_streaming:835533720030019605>',
+        'dnd' = '<:status_dnd:835533737528786964>',
+        'idle' = '<:status_idle:835533752917950464>',
+        'offline' = '<:status_offline:835534752068796437>'
+        }
+
+        member1 = set()
+        roles1 = set()
         if sorting not in ('a', 'ar', 't', 'tr', 'w', 'wr'):
             try:
                 sorting = await commands.MemberConverter().convert(ctx, str(sorting))
                 member1.append(sorting)
-                sorting = 'a'
             except Exception as e:
-                print(e)
                 try:
                     sorting = await commands.RoleConverter().convert(ctx, str(sorting))
                     roles1.append(sorting)
-                    sorting = 'a'
                 except:
                     await ctx.send(f'{sorting} is not recognized as as a sorting method. Defaulting to sorting method a.')
-                    sorting = 'a'
+            finally:
+                sorting = 'a'
         for x in members:
-            member1.append(x)
+            member1.add(x)
         for x in roles:
-            roles1.append(x)
-        if roles1 == []:
-            roles1 = [dragon]
-        if member1 == []:
-            for role in roles1:
-                for memb in role.members:
-                    member1.append(memb)
-        elif roles1 != [dragon]:
-            for role in roles1:
-                for memb in role.members:
-                    member1.append(memb)
+            roles1.add(x)
+        for role in roles1:
+            for member in role.members:
+                members1.add(member)
         async with asqlite.connect('SobekStorage1.db') as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("SELECT * FROM lastseen")
                 m = await cursor.fetchall()
-                m1 = {m0[0]: (m0[1], m0[2]) for m0 in m}
+                m1 = {m0[0]: (m0[1], m0[2], m0[3]) for m0 in m}
                 final = {}
-                for member in member1:
+                for member in member1 if member1 else m1:
                     if member.id in m1:
                         container = []
                         for element in m1[member.id]:
-                            if element != 'Never':
+                            if type(element) == datetime:
                                 datetime_object = datetime.strptime(element, '%Y-%m-%d %H:%M:%S.%f%z')
                                 delta_difference = datetime.now(timezone.utc) - datetime_object
                                 m_amount, h_amount = math.modf(delta_difference.seconds / 3600)
@@ -282,8 +278,8 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                                     time_since_seen = 'Now'
                                 container.append(time_since_seen)
                             else:
-                                container.append('Never')
-                            final[f'{member.name} ({member.display_name})'] = ', __last ws__: '.join(container)
+                                container.append(element)
+                            final[f'{status[container[-1]]} {member.mention}'] = ', __last ws__: '.join(container[:-1])
                 send = []
                 for record in final:
                     send.append(f'**{record}**: {final[record]}')
@@ -292,7 +288,7 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                     info = info.split(':')[index].strip(', __last ws__').strip().split()
                     if info == 'Now':
                         return 0
-                    elif info == 'Never':
+                    elif type(info) != datetime:
                         return float('inf')
                     total_ago = 0
                     for amount in info:
@@ -305,9 +301,9 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                     return total_ago
 
                 if sorting.lower() == 'a':
-                    send.sort(key = str.lower)
+                    send.sort(key = lambda ago: str.lower(ago.split('>')[-1]))
                 elif sorting.lower() == 'ar':
-                    send.sort(key = str.lower, reverse=True)
+                    send.sort(key = lambda ago: str.lower(ago.split('>')[-1]), reverse=True)
                 elif sorting.lower() == 't':
                     send.sort(key = lambda ago: key_ago(ago, 1))
                 elif sorting.lower() == 'tr':
@@ -319,10 +315,10 @@ If you are interested in leading a White Star, please contact an Officer or ws c
 
                 ls_embed = discord.Embed(title='Last Seen',
                     description = '\n'.join(send))
-                ls_embed.set_footer(text='If a mentioned member "has not been seen" they will not show up.\n'
+                ls_embed.set_footer(text='If a mentioned member "has not been seen" or is not tracked they will not show up.\n'
                     'If a member is in the invisible status, their last seen time will be from their last time online in any status other than invisible\n'
-                    'Unlisted members have never been seen.\n'
-                    'Last Seen only applies to members with the Dragon role.')
+                    'The displayed status is the last status they were seen in other than offline (offline may appear in rare circumstances).\n'
+                    'Last Seen only applies to members with the Dragon role or a ws role.')
                 if len(ls_embed) <= 6000:
                     await ctx.send(embed=ls_embed)
                 else:
