@@ -42,7 +42,7 @@ class Fun(commands.Cog):
 
         if 'color' not in [role.name for role in ctx.author.roles]:
             color_role = ctx.guild.create_role(reason = 'color assignment for' + ctx.author.name, name = 'color', color = assign_color)
-            await color_role.edit(position = self.top_role.position - 1)
+            await color_role.edit(position = self.top_role.position - 2)
             await ctx.author.add_roles(color_role, reason = 'color assignment')
             await ctx.send(f'Assigned color role with hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
             await asyncio.sleep(86400)
