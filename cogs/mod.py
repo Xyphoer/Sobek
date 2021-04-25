@@ -20,8 +20,8 @@ class Mod(commands.Cog):
 
         Usage:
         `?kick Nyx_2#8763 beligerent`
-        `?kick my_id_here Complete disregard for human decency`
-        `?kick my_id_here Xyphoer_id_here just because`
+        `?kick 341331627839848448 Complete disregard for human decency`
+        `?kick 341331627839848448 691827198251761735 just because`
         `?kick Nyx_2`
         """
         total = []
@@ -43,8 +43,8 @@ class Mod(commands.Cog):
 
         Usage:
         `?ban Nyx_2#8763 I can't even remember why.`
-        `?ban my_id_here 2 Failure to please.`
-        `?ban my_id_here Xyphoer_id_here 1 In cahoots for global domination.`
+        `?ban 341331627839848448 2 Failure to please.`
+        `?ban 341331627839848448 691827198251761735 1 In cahoots for global domination.`
         `?ban Nyx_2`
         """
         total = []
@@ -65,9 +65,9 @@ class Mod(commands.Cog):
         The reason can be any text.
 
         Usage:
-        `?purge Nyx_2#8763 Xyphoer_id_here friend Retired`
-        `?purge my_id_here Xyphoer_id_here Inactive`
-        `?purge my_id_here`
+        `?purge Nyx_2#8763 691827198251761735 friend Retired`
+        `?purge 341331627839848448 691827198251761735 Inactive`
+        `?purge 341331627839848448`
         """
         for member in members:
             member.remove_roles(*member.roles, reason = reason)
@@ -76,6 +76,98 @@ class Mod(commands.Cog):
         if members:
             if role: await ctx.send(f'Purged roles from {member.name for member in members}. Added role {role.name}. Reason: {reason}')
             else: await ctx.send(f'Purged roles from {member.name for member in members}. Reason: {reason}')
+
+    @commands.command(aliases = ['create_mute'])
+    @chekcs.is_officer()
+    async def create_mute_role(self, ctx):
+        if 'muted' in [role.name for role in ctx.guild.roles]:
+            mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+            for channel in ctx.guild.channels:
+                if mute_role not in channel.overwrites: await channel.set_permissions(mute_role, reason = 'mute role update', send_messages = False)
+            await ctx.send('"muted" role already updated.')
+        else:
+            mute_role = ctx.guild.create_role(reason = "mute role creation", name = 'muted')
+            await mute_role.edit(position = self.top_role.position - 1, reason = "updating mute role position")
+            for channel in ctx.guild.channels:
+                await channel.set_permissions(mute_role, reason = 'mute role initialization', send_messages = False)
+
+    @commands.command()
+    @checks.is_officer()
+    async def mute(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
+        """
+        Mutes one or multiple members for the optionally provided reason.
+
+        Usage:
+        `?mute Nyx_2`
+        `?mute 341331627839848448 Nyx_2#8763 Can't stop bickering`
+        """
+        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+        for member in members:
+            member.add_roles(mute_role, reason = f'Muted by {ctx.author.name} for reason: {reason}')
+        else:
+            await ctx.send('Provide a member to mute.')
+            return
+        await ctx.send(f'Muted {", ".join([member.name for member in members])}.')
+
+    @commands.command()
+    @checks.is_officer()
+    async def unmute(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
+        """
+        Unmutes one or multiple members for the optionally provided reason.
+
+        Usage:
+        `?unmute Nyx_2`
+        `?unmute 341331627839848448 Nyx_2#8763 Issue resolved.`
+        """
+        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+        for member in members:
+            member.remove_roles(mute_role, reason = f'Unmuted by {ctx.author.name} for reason: {reason}')
+        else:
+            await ctx.send('Provide a muted member to unmuted')
+            return
+        await ctx.send(f'Unmuted {", ".join([member.name for member in members])}')
+
+    @commands.command()
+    @checks.is_officer()
+    async def unmute(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
+        """
+        """
+        pass
+
+    @commands.command()
+    @checks.is_officer()
+    async def lock(self, ctx):
+        """
+        Locks the channel the command is called in.
+
+        Anyone without the Officer role can no longer send messages.
+        No roles above the bots role will be changed.
+
+        Usage: `?lock`
+        """
+        for role in ctx.channel.changed_roles:
+            if role.id != 444548579839705089 and role.position < self.top_role.position:
+                ctx.channel.set_permissions(role, reason = f"Channel lock by {ctx.author.name}", send_messages = False)
+        await ctx.send('Channel locked.')
+
+    @commands.command()
+    @checks.is_officer()
+    async def unlock(self ,ctx):
+        """
+        Unlocks the channel the command is called in.
+
+        Anyone without the muted role can send messages once again.
+        No roles above the bots role will be changed.
+
+        Usage: `?unlock`
+
+        Note: The lock and unlock commands do not store previous channel overwrites, and therefore unlock may give the send_messages permissions to one or more roles that did not have it before the channel was locked.
+        """
+        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+        for role in ctx.channel.changed_roles:
+            if role != mute_role and role.position < self.top_role.position:
+                ctx.channel.set_permissions(role, reason = f"Channel unlock by {ctx.author.name}", send_messages = True)
+        await ctx.send('Channel unlocked.')
 
 def setup(bot):
     bot.add_cog(Mod(bot))
