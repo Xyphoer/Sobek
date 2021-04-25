@@ -2,7 +2,6 @@ import discord
 from discord.ext import tasks, commands
 import asyncio
 import math
-import re
 from asqlite import asqlite
 from datetime import datetime, timezone
 from typing import Optional
@@ -111,16 +110,12 @@ class Utility(commands.Cog):
                 removed = []
 
                 for member in members:
-                    try:
-                        if role in member.roles:
-                            await member.remove_roles(role)
-                            removed.append(member.display_name)
-                        else:
-                            await member.add_roles(role)
-                            added.append(member.display_name)
-
-                    except discord.Forbidden:
-                        await ctx.send(f'I have insufficient permissions to perform this task for {member.name}.')
+                    if role in member.roles:
+                        await member.remove_roles(role)
+                        removed.append(member.display_name)
+                    else:
+                        await member.add_roles(role)
+                        added.append(member.display_name)
                 await ctx.send(f'`{role.name}`\nAdded: {", ".join(added)}\nRemoved: {", ".join(removed)}')
             else:
                 await ctx.send(f"The specified role must be below your top role.")
@@ -152,11 +147,8 @@ class Utility(commands.Cog):
                     return m.pinned == False
 
                 return m.pinned == False and m.author in members
-            try:
-                await ctx.message.delete()
-                await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
-            except discord.Forbidden:
-                await ctx.send('I am missing the required permissions to perform this actions.')
+            await ctx.message.delete()
+            await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
             else:
                 await ctx.send(final_message, delete_after = 10.0)
         else:
@@ -360,27 +352,6 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 total_roles.append(f'`{role.name}`')
             send_roles = ', '.join(total_roles)
             await ctx.send(f'Guild roles:\n{send_roles}')
-
-    # @commands.command(hidden = True)   #not quite there yet...
-    # @commands.is_owner()
-    # async def eval(self, ctx, *, code):
-
-    #     t = textwrap.indent(code.strip('```py'), '  ')
-    #     code = f'async def code_func():\n{t}'
-
-    #     vars = {
-    #     'bot' : self.bot,
-    #     'ctx' : ctx,
-    #     }
-
-    #     vars.update(globals())
-
-    #     try:
-    #         exec(code, vars)
-    #         result = await code_func()
-    #         await ctx.send(f'```py\n{result}```')
-    #     except Exception as e:
-    #         await ctx.send(f'```py\n{e}```')
 
 def setup(bot):
     bot.add_cog(Utility(bot))
