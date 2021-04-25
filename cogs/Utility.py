@@ -13,6 +13,17 @@ class Utility(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    def role_list_process(self, title, total, container, individuals, color):
+
+        embed = discord.Embed(title = title, description = " ".join(total), color = color)
+
+        embed.add_field(name = 'Total', value = ' '.join(f'{content}: {container.count(content)}' for content in container))
+        embed.add_field(name = 'Individuals', value = individuals)
+        if len(total) > 1:
+            embed.add_field(name = 'Shared', value = " ".join(content for content in container if container.count(content) == len(total)))
+
+        return embed
+
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
         
@@ -149,8 +160,7 @@ class Utility(commands.Cog):
                 return m.pinned == False and m.author in members
             await ctx.message.delete()
             await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
-            else:
-                await ctx.send(final_message, delete_after = 10.0)
+            await ctx.send(final_message, delete_after = 10.0)
         else:
             await ctx.send(f'Command not permitted in this channel.')
 
@@ -211,9 +221,10 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         Any specified roles must be after all (if any) specified members.
         Order of inputs: sorting (optional, a (alphabetical), ar (alphabetical reverse), t (time), tr (time reverse), w (ws activity), wr (ws activity reverse)) members (optional, any amount) roles (optional, any amount)
 
-        Ex. ?ls member1 member2 "multi word role" role2
-        Ex. ?lastseen role
-        EX. ?ls tr member role1 role2
+        Ex. 
+            `?ls member1 member2 "multi word role" role2`
+            `?lastseen role`
+            `?ls tr member role1 role2`
         
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
         status = {
@@ -318,40 +329,63 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                         If this bothers you let Nyx_2#8763 (341331627839848448) know, and maybe a page feature will be implemented.')
 
     @commands.command(aliases=['rl'])
-    async def rolelist(self, ctx, member: commands.Greedy[discord.Member] = [], role: commands.Greedy[discord.Role] = []):
-        """Displays all roles/members associated with specified members/roles.
+    async def rolelist(self, ctx, members: commands.Greedy[discord.Member] = [], roles: commands.Greedy[discord.Role] = [], ids: bool = False):
+        """Displays all roles/members associated with specified members/roles, along with some useful information.
 
         Takes in amount of members and/or roles.
         All members must be specified first.
+        Accepts an optional bool value of True or False at the end for whether or not to have the fields use ids. Defaults to False
+        If no members/roles are specified, lists the guild roles.
+
+        Displayed fields are:
+        Total (all roles on specified members or all members with a specified role),
+        Individuals (all specified members and their roles or all specified roles and their members)
+        Shared (all roles on all specified members or all members)
 
         Ex.
-            ?rl member1 "member 2" role1
+            `?rl member1 "member 2" role1`
+            `?rolelist`
+            `?rolelist 621452020737507350 True`
 
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
-        if member != []:
-            member_list = ['Members with roles:']
-            for memb in member:
-                rl = []
-                for role1 in memb.roles:
-                    rl.append(f'`{role1.name}`')
-                rl = ', '.join(rl)
-                member_list.append(f'--{memb}({memb.display_name}):\n{rl}')
-            await ctx.send('\n'.join(member_list))
-        if role != []:
-            role_list = ['Roles with members:']
-            for rol in role:
-                ml = []
-                for member in rol.members:
-                    ml.append(f'`{member}({member.display_name})`')
-                ml = ', '.join(ml)
-                role_list.append(f'--{rol}:\n{ml}')
-            await ctx.send('\n'.join(role_list))
-        elif role == [] and member == []:
-            total_roles = []
-            for role in ctx.guild.roles:
-                total_roles.append(f'`{role.name}`')
-            send_roles = ', '.join(total_roles)
-            await ctx.send(f'Guild roles:\n{send_roles}')
+        
+        individual_roles = zip(set(members), [member.roles for member in set(members)])
+        individual_members = zip(set(roles), [role.members for role in set(roles)])
+
+        if ids:
+            member_roles = [role.id for role in formats.no_nested_containers([member.roles for member in members])]
+            members_total = [member.id for member in set(members)]
+            individual_roles = " ".join([f'{member.id}: {" ".join(role.id for role in roles)}' for member, roles in individual_roles])
+
+            role_members = [member.id for member in formats.no_nested_containers([role.members for role in roles])]
+            roles_total = [role.id for role in set(roles)]
+            individual_members = " ".join([f'{role.id}: {" ".join(member.id for member in members)}' for role, members in individual_members])
+        else:
+            member_roles = [role.mention for role in formats.no_nested_containers([member.roles for member in members])]
+            members_total = [member.mention for member in set(members)]
+            individual_roles = " ".join([f'{member.mention}: {" ".join(role.mention for role in roles)}' for member, roles in individual_roles])
+
+            role_members = [member.mention for member in formats.no_nested_containers([role.members for role in roles])]
+            roles_total = [role.mention for role in set(roles)]
+            individual_members = " ".join([f'{role.mention}: {" ".join(member.mention for member in members)}' for role, members in individual_members])
+
+
+        if members:
+            embed_members = self.role_list_process('Members with roles:', members_total, member_roles, individual_roles, ctx.author.top_role.color.value)
+            await ctx.send(embed = embed_members)
+
+        if roles:
+            embed_roles = self.role_list_process('Roles with members:', roles_total, role_members, individual_members, ctx.author.top_role.color.value)
+            await ctx.send(embed = embed_roles)
+
+        elif not members:
+            if ids:
+                embed_guild_roles.add_field(title = 'Guild Roles ids', value = " ".join(role.id for role in ctx.guild.roles))
+
+            else:
+                embed_guild_roles = discord.Embed(title = 'Guild Roles:', description = ' '.join(role.mention for role in ctx.guild.roles), color = ctx.author.top_role.color.value)
+
+            await ctx.send(embed = embed_guild_roles)
 
 def setup(bot):
     bot.add_cog(Utility(bot))
