@@ -135,6 +135,7 @@ class Utility(commands.Cog):
 
     @commands.command()
     @checks.is_commander()
+    @checks.allowed_channels('testing', 'orders', 'dump-n-grab', 'observations', 'rocket-support')
     async def clear(self, ctx, amount: Optional[int] = None, old_first: Optional[bool] = True, members: commands.Greedy[discord.Member] = None):
         """Clears all or a specified amount (to search through) of messages in a channel.
 
@@ -149,7 +150,6 @@ class Utility(commands.Cog):
         No arguments are required. You may leave out any arguments and provide the others, so long as you maintain the proper order for the arguments you do provide.
 
         Never clears pinned messages."""
-        allowed_channels = ('testing', 'orders', 'dump-n-grab', 'observations', 'rocket-support')
         if ctx.channel.name in allowed_channels:
             if members: final_message = f'Cleared from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, oldest first = {old_first}.'
             else: final_message = f'Cleared from {amount if amount else "all"} messages, oldest first = {old_first}.'
@@ -166,6 +166,7 @@ class Utility(commands.Cog):
 
     @commands.command()
     @checks.is_commander()
+    @checks.blocked_channels('lobby', 'red-star')
     async def WhiteStar(self, ctx, starting, category: Optional[discord.Role] = None, size: Optional[int] = 'Undetermined', *, comment = None):
         """Sends a new WhiteStar message to #white-star-preperation.
 
@@ -211,6 +212,8 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             await ctx.send('No role was specified.')
 
     @commands.command(aliases=['ls'])
+    @checks.is_dragon(ws_allowed = True)
+    @checks.blocked_channels('lobby', 'mess-hall', 'red-star')
     async def lastseen(self, ctx, sorting = 'a', members: commands.Greedy[discord.Member] = [], roles: commands.Greedy[discord.Role] = []):
         """Shows how long ago people were see in any status other than invisible/offline.
 

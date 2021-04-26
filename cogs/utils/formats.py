@@ -22,3 +22,10 @@ def no_nested_containers(container):
                 container.remove(content)
                 clean = False
     return container
+
+def one_or_more(matches, container):
+    for content in container:
+        for match in matches:
+            if content == match:
+                return True
+    return False

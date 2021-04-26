@@ -129,13 +129,6 @@ class Mod(commands.Cog):
 
     @commands.command()
     @checks.is_officer()
-    async def unmute(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
-        """
-        """
-        pass
-
-    @commands.command()
-    @checks.is_officer()
     async def lock(self, ctx):
         """
         Locks the channel the command is called in.

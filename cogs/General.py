@@ -4,6 +4,7 @@ import asyncio
 import json
 from asqlite import asqlite
 import re
+from .utils import checks
 
 class General(commands.Cog):
     """General commands for use by pretty much anyone."""
@@ -66,6 +67,7 @@ class General(commands.Cog):
         await ctx.send(f'Successfully change nickname from {old} to {nickname}')
 
     @commands.command(aliases=['RS1','RS2','RS3','RS4','RS5','RS6','RS7','RS8','RS9','RS10','RS11'])
+    @checks.blocked_channels('lobby', 'mess-hall')
     async def RS(self, ctx):
         """Adds or removes the specified RS roles.
 
