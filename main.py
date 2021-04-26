@@ -48,7 +48,7 @@ class MyHelpCommand(commands.HelpCommand):
 
 intents = discord.Intents.all()
 
-cogwheels = ('utility', 'general')
+cogwheels = ('utility', 'general', 'mod', 'fun')
 
 bot = commands.Bot(command_prefix = '`', intents=intents, case_insensitive=True, help_command=MyHelpCommand())
 
@@ -61,21 +61,24 @@ if __name__ == "__main__":
 async def on_ready():
     print(f'logged in as {bot.user.name}')
 
-@bot.command()
-@commands.has_permissions(administrator=True)
+@bot.command(hidden = True)
+@commands.is_owner()
 async def reload(ctx, *wheels):
     """Reloads a specified extention, or all extentions."""
     if not wheels: wheels = cogwheels
     m = await ctx.send('reloading...')
     for wheel in cogwheels:
         try:
+            if wheel == 'fun':
+                for role in ctx.guild.roles():
+                    if role.name 
             bot.reload_extension(f'cogs.{wheel}')
         except Exeption as e:
             await ctx.send(f'Error reloading {wheel}:\n{e}')
     await m.edit(content = f'reloaded {", ".join(wheels)}')
 
-@bot.command()
-@commands.has_permissions(administrator=True)
+@bot.command(hidden = True)
+@commands.is_owner()
 async def shutdown(ctx):
     """Shuts down the bot."""
     embed=discord.Embed(title='Shutdown',
@@ -96,28 +99,26 @@ async def shutdown(ctx):
         await m.edit(embed=timeout)
     else:
         if str(reaction) == '\N{WHITE HEAVY CHECK MARK}':
-            try:
-                await m.clear_reactions()
-            except discord.Forbidden:
-                await ctx.send('Cannot clear reactions.')
+            for role in ctx.guild.roles():
+                if role.name == 'color': role.delete(reason = 'shutting down, color role purge.')
+            await m.clear_reactions()
             shutting_down = discord.Embed(title='Shutting Down')
             shutting_down.set_footer(text=f'Called by {ctx.author.name}  {ctx.author.id}.')
             await m.edit(embed=shutting_down)
             await bot.close()
         else:
-            try:
-                await m.clear_reactions()
-            except discord.Forbidden:
-                await ctx.send('Cannot clear reactions.')
+            await m.clear_reactions()
             cancelled = discord.Embed(title='Cancelled')
             cancelled.set_footer(text=f'Called by {ctx.author.name}  {ctx.author.id}.')
             await m.edit(embed=cancelled)
 
 async def on_command_error(ctx, error):
-    await ctx.send(error)
-    #test common errors that don't provide a helpful message and send custom messages for those.
-    #^ Especially command not found. Don't display that.
-    #discord.Forbidden means bot doesn't have perms.
+    if isinstance(error, discord.Forbidden):
+        await ctx.send('I have insufficient permissions to perform this task.')
+    elif isinstance(error, commands.CommandNotFound):
+        pass
+    else:
+        await ctx.send(error)
 
 async def data_storage():
     async with asqlite.connect('SobekStorage1.db') as conn:
@@ -127,7 +128,6 @@ async def data_storage():
             ##await cursor.execute("ALTER TABLE lastseen ADD COLUMN status text")
             ##await cursor.execute("DROP TABLE Memorial")
             #await cursor.execute("ALTER TABLE lastseen ADD COLUMN ws text")
-            #await cursor.execute("INSERT OR REPLACE INTO Memorial(tracking) VALUES(1)")
 
 asyncio.run(data_storage())
 

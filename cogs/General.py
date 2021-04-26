@@ -3,7 +3,6 @@ from discord.ext import commands
 import asyncio
 import json
 from asqlite import asqlite
-import random
 import re
 
 class General(commands.Cog):
@@ -11,14 +10,6 @@ class General(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.command()
-    async def random(self, ctx):
-        """Randomly displays a members profile picture."""
-        member = random.choice(ctx.guild.members)
-        embed = discord.Embed(description=f'||{member.mention}||')
-        embed.set_image(url = member.avatar_url)
-        await ctx.send(embed=embed)
 
     @commands.command()
     async def remind(self, ctx, duration, *, content):
@@ -70,19 +61,16 @@ class General(commands.Cog):
         """Changes your nickname to whatever follows the command.
 
         Usage: ?nick new nickname"""
-        try:
-            old = ctx.author.display_name
-            await ctx.author.edit(nick=nickname)
-            await ctx.send(f'Successfully change nickname from {old} to {nickname}')
-        except discord.Forbidden:
-            await ctx.send('I have insufficient permissions to perform this task.')
+        old = ctx.author.display_name
+        await ctx.author.edit(nick=nickname)
+        await ctx.send(f'Successfully change nickname from {old} to {nickname}')
 
     @commands.command(aliases=['RS1','RS2','RS3','RS4','RS5','RS6','RS7','RS8','RS9','RS10','RS11'])
     async def RS(self, ctx):
         """Adds or removes the specified RS roles.
 
         Usage: ?RS4"""
-        role = discord.utils.get(ctx.message.guild.roles, name=f'RS{ctx.message.content[3:]}')
+        role = discord.utils.get(ctx.guild.roles, name=f'RS{ctx.message.content[3:]}')
         if role != None:
             if role in ctx.author.roles:
                 await ctx.author.remove_roles(role)
