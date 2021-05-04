@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import random
-import checks
+from .utils import checks
 import asyncio
 
 class Fun(commands.Cog):
@@ -41,13 +41,16 @@ class Fun(commands.Cog):
         assign_color = int_code if int_code else discord.Colour.random()
 
         if 'color' not in [role.name for role in ctx.author.roles]:
-            color_role = ctx.guild.create_role(reason = 'color assignment for' + ctx.author.name, name = 'color', color = assign_color)
-            await color_role.edit(position = self.top_role.position - 2)
+            color_role = await ctx.guild.create_role(reason = 'color assignment for' + ctx.author.name, name = 'color', color = assign_color)
+            await color_role.edit(position = ctx.guild.me.top_role.position - 2)
             await ctx.author.add_roles(color_role, reason = 'color assignment')
             await ctx.send(f'Assigned color role with hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
             await asyncio.sleep(86400)
-            color_role.delete(reason = 'color role time up.')
+            await color_role.delete(reason = 'color role time up.')
         else:
             color_role = [role for role in ctx.author.roles if role.name == 'color'][0]
             await color_role.edit(color = assign_color)
             await ctx.send(f'Changed color role to hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
+
+def setup(bot):
+    bot.add_cog(Fun(bot))

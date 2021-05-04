@@ -4,6 +4,8 @@ import discord
 import asyncio
 import logging
 import json
+import traceback
+import sys
 from asqlite import asqlite
 
 
@@ -70,11 +72,13 @@ async def reload(ctx, *wheels):
     for wheel in cogwheels:
         try:
             if wheel == 'fun':
-                for role in ctx.guild.roles():
-                    if role.name 
+                for role in ctx.guild.roles:
+                    if role.name == 'color':
+                        await role.delete(reason = 'reloading fun cog, color role purge.')
             bot.reload_extension(f'cogs.{wheel}')
-        except Exeption as e:
-            await ctx.send(f'Error reloading {wheel}:\n{e}')
+        except Exception as e:
+            await ctx.send(f'Error reloading {wheel}')
+            traceback.print_exc()
     await m.edit(content = f'reloaded {", ".join(wheels)}')
 
 @bot.command(hidden = True)
@@ -99,8 +103,9 @@ async def shutdown(ctx):
         await m.edit(embed=timeout)
     else:
         if str(reaction) == '\N{WHITE HEAVY CHECK MARK}':
-            for role in ctx.guild.roles():
-                if role.name == 'color': role.delete(reason = 'shutting down, color role purge.')
+            for role in ctx.guild.roles:
+                if role.name == 'color':
+                    await role.delete(reason = 'shutting down, color role purge.')
             await m.clear_reactions()
             shutting_down = discord.Embed(title='Shutting Down')
             shutting_down.set_footer(text=f'Called by {ctx.author.name}  {ctx.author.id}.')
@@ -112,20 +117,31 @@ async def shutdown(ctx):
             cancelled.set_footer(text=f'Called by {ctx.author.name}  {ctx.author.id}.')
             await m.edit(embed=cancelled)
 
+@bot.event
 async def on_command_error(ctx, error):
-    if isinstance(error, discord.Forbidden):
-        await ctx.send('I have insufficient permissions to perform this task.')
+    if isinstance(error, commands.CommandInvokeError):
+        if isinstance(error.original, discord.Forbidden):
+            await ctx.send('I have insufficient permissions to perform this task.')
+        else:
+            await ctx.send(error)
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
     elif isinstance(error, commands.CommandNotFound):
-        pass
+        return
+    elif isinstance(error, commands.CheckFailure):
+        await ctx.send('You are not permitted to use this command.')
     else:
         await ctx.send(error)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 async def data_storage():
     async with asqlite.connect('SobekStorage1.db') as conn:
         async with conn.cursor() as cursor:
+            ##await cursor.execute('''DROP TABLE lastseen''')
             await cursor.execute('''CREATE TABLE IF NOT EXISTS lastseen
                 (member, seen, ws, status)''')
             ##await cursor.execute("ALTER TABLE lastseen ADD COLUMN status text")
+            ##for member in bot.get_guild(443747736555225102).get_role(444548579839705089).members:
+                ##await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (member.raw_status, member.id))
             ##await cursor.execute("DROP TABLE Memorial")
             #await cursor.execute("ALTER TABLE lastseen ADD COLUMN ws text")
 

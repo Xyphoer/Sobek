@@ -1,10 +1,10 @@
 from discord.ext import commands
-import formats
+from .formats import one_or_more
 
 def is_dragon(ws_allowed = False):
     def predicate(ctx):
         if ws_allowed:
-            return formats.one_or_more((444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387), [role.id for role in ctx.author.roles]) or ctx.author.guild_permissions.manage_roles
+            return one_or_more((444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387), [role.id for role in ctx.author.roles]) or ctx.author.guild_permissions.manage_roles
         return 444548579839705089 in [role.id for role in ctx.author.roles] or ctx.author.guild_permissions.manage_roles
     return commands.check(predicate)
 

@@ -17,10 +17,10 @@ class Utility(commands.Cog):
 
         embed = discord.Embed(title = title, description = " ".join(total), color = color)
 
-        embed.add_field(name = 'Total', value = ' '.join(f'{content}: {container.count(content)}' for content in container))
+        embed.add_field(name = 'Total', value = ' '.join(f'{content}: {container.count(content)}' for content in set(container)))
         embed.add_field(name = 'Individuals', value = individuals)
         if len(total) > 1:
-            embed.add_field(name = 'Shared', value = " ".join(content for content in container if container.count(content) == len(total)))
+            embed.add_field(name = 'Shared', value = " ".join(content for content in set(container) if container.count(content) == len(total)))
 
         return embed
 
@@ -30,8 +30,8 @@ class Utility(commands.Cog):
         #Dragon, WS1-DA, WS2-DA, WS1-H, WS2-H
         tracked_roles = (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
 
-        before_roles = formats.compare_containers(tracked_roles, before.roles)
-        after_roles = formats.compare_containers(tracked_roles, after.roles)
+        before_roles = formats.compare_containers(tracked_roles, [role.id for role in before.roles])
+        after_roles = formats.compare_containers(tracked_roles, [role.id for role in after.roles])
 
         if not before_roles and not after_roles:
             return
@@ -40,7 +40,7 @@ class Utility(commands.Cog):
             return
 
         ws_role = False
-        if formats.compare_containers(tracked_roles[1:]. before_roles) and not formats.compare_containers(tracked_roles[1:], after_roles): ws_role = datetime.now(timezone.utc)
+        if formats.compare_containers(tracked_roles[1:], before_roles) and not formats.compare_containers(tracked_roles[1:], after_roles): ws_role = datetime.now(timezone.utc)
         elif formats.compare_containers(tracked_roles[1:], after_roles): ws_role = 'Now'
 
         async with asqlite.connect('SobekStorage1.db') as conn:
@@ -50,21 +50,21 @@ class Utility(commands.Cog):
                 m1 = [m[0] for m in m_id]
 
                 if not after_roles:
-                    await cursor.execute('DELETE FROM lastseen WHERE member=?', (member.id))
+                    await cursor.execute('DELETE FROM lastseen WHERE member=?', (after.id))
                     await conn.commit()
                     return
 
                 if after.id in m1:
-                    if after.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, member.id))
-                    elif before.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (before.raw_status, member.id))
+                    if after.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, after.id))
+                    elif before.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (before.raw_status, after.id))
                 else:
-                    await cursor.execute('INSERT INTO lastseen (member, status) VALUES(?, ?)', (member.id, after.raw_status))
+                    await cursor.execute('INSERT INTO lastseen (member, seen, ws, status) VALUES(?, ?, ?, ?)', (after.id, 'Never' if after.raw_status == 'offline' else 'Now', 'Never', after.raw_status))
                 if ws_role:
-                    await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (ws_role, member.id))
+                    await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (ws_role, after.id))
                 if before.raw_status != 'offline' and after.raw_status == 'offline':
-                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc), member.id))
+                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc), after.id))
                 elif before.raw_status == 'offline' and after.raw_status != 'offline':
-                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', ('Now', member.id))
+                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', ('Now', after.id))
 
                 await conn.commit()
 
@@ -79,13 +79,13 @@ class Utility(commands.Cog):
 
         If a role is specified, it must be specified first.
         You can also specify a message at the end. If specified it must be of the format “{channel ID}-{message ID}” (retrieved by shift-clicking on “Copy ID”) or the message link.
-            If the message is in the same channel however, just the message id is fine. If ?ws is specified with no members, and no member has the role, the message will be the last bot message (limit 10 messages) in white-star-preperation.
+            If the message is in the same channel however, just the message id is fine. If ?edit_roles is specified with no members, and no member has the role, the message will be the last bot message (limit 10 messages) in white-star-preperation.
             The message will add all users who reacted to the message to the affected users.
 
         Ex:
             ?ws
             ?ws member1 member2
-            ?ws member1 member2 role
+            ?ws role member1 member2
             ?ws "muli word role"
             ?ws role 713126629358174338-793119635854589954
 
@@ -198,8 +198,8 @@ class Utility(commands.Cog):
 Note, reactions are simply to determine who will be the most active.
 Anyone with their ws scanner on may be selected and will be expected to participate.
 If you will not be able to respond within the 1.5h response time during your waking hours, but do not want to be left out of the star, contact the FC in general discussion.""")
-            channel = bot.get_channel()  #ws_prep_channel id.
-            dragon = discord.utils.get(ctx.guild.roles, name = 'Dragon') #consider switching to id.
+            channel = self.bot.get_channel(713126629358174338)
+            dragon = ctx.guild.get_role(444548579839705089)
             if channel:
                 await channel.send(f"""{dragon.mention} Below is an upcoming White Star. 
 Please keep in mind that everyone is expeced to participate approximately once a month. 
@@ -231,11 +231,11 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
         status = {
-        'online' = '<:status_online:835533703718764545>',
-        'streaming' = '<:status_streaming:835533720030019605>',
-        'dnd' = '<:status_dnd:835533737528786964>',
-        'idle' = '<:status_idle:835533752917950464>',
-        'offline' = '<:status_offline:835534752068796437>'
+        'online' : '<:status_online:830914158387527681>',
+        'streaming' : '<:status_streaming:830914213860999198>',
+        'dnd' : '<:status_dnd:830914192294674485>',
+        'idle' : '<:status_idle:830914177937047612>',
+        'offline' : '<:status_offline:835534710297198602>'
         }
 
         member1 = set()
@@ -243,11 +243,11 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         if sorting not in ('a', 'ar', 't', 'tr', 'w', 'wr'):
             try:
                 sorting = await commands.MemberConverter().convert(ctx, str(sorting))
-                member1.append(sorting)
+                member1.add(sorting)
             except Exception as e:
                 try:
                     sorting = await commands.RoleConverter().convert(ctx, str(sorting))
-                    roles1.append(sorting)
+                    roles1.add(sorting)
                 except:
                     await ctx.send(f'{sorting} is not recognized as as a sorting method. Defaulting to sorting method a.')
             finally:
@@ -258,7 +258,7 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             roles1.add(x)
         for role in roles1:
             for member in role.members:
-                members1.add(member)
+                member1.add(member)
         async with asqlite.connect('SobekStorage1.db') as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("SELECT * FROM lastseen")
@@ -266,10 +266,12 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 m1 = {m0[0]: (m0[1], m0[2], m0[3]) for m0 in m}
                 final = {}
                 for member in member1 if member1 else m1:
+                    if type(member) == int:
+                        member = ctx.guild.get_member(member)
                     if member.id in m1:
                         container = []
                         for element in m1[member.id]:
-                            if type(element) == datetime:
+                            try:
                                 datetime_object = datetime.strptime(element, '%Y-%m-%d %H:%M:%S.%f%z')
                                 delta_difference = datetime.now(timezone.utc) - datetime_object
                                 m_amount, h_amount = math.modf(delta_difference.seconds / 3600)
@@ -283,18 +285,18 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                                 else:
                                     time_since_seen = 'Now'
                                 container.append(time_since_seen)
-                            else:
+                            except ValueError:
                                 container.append(element)
-                            final[f'{status[container[-1]]} {member.mention}'] = ', __last ws__: '.join(container[:-1])
+                        final[f'{status[container[-1]]} {member.mention}'] = ', __last ws__: '.join(container[:-1])
                 send = []
                 for record in final:
                     send.append(f'**{record}**: {final[record]}')
 
                 def key_ago(info, index):
                     info = info.split(':')[index].strip(', __last ws__').strip().split()
-                    if info == 'Now':
+                    if info[0] == 'No':
                         return 0
-                    elif type(info) != datetime:
+                    elif info[0] == 'Never':
                         return float('inf')
                     total_ago = 0
                     for amount in info:
@@ -311,13 +313,13 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 elif sorting.lower() == 'ar':
                     send.sort(key = lambda ago: str.lower(ago.split('>')[-1]), reverse=True)
                 elif sorting.lower() == 't':
-                    send.sort(key = lambda ago: key_ago(ago, 1))
+                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 1))
                 elif sorting.lower() == 'tr':
-                    send.sort(key = lambda ago: key_ago(ago, 1), reverse=True)
+                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 1), reverse=True)
                 elif sorting.lower() == 'w':
-                    send.sort(key = lambda ago: key_ago(ago, 2))
+                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 2))
                 elif sorting.lower() == 'wr':
-                    send.sort(key = lambda ago: key_ago(ago, 2), reverse=True)
+                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 2), reverse=True)
 
                 ls_embed = discord.Embed(title='Last Seen',
                     description = '\n'.join(send))
@@ -356,30 +358,36 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         individual_members = zip(set(roles), [role.members for role in set(roles)])
 
         if ids:
-            member_roles = [role.id for role in formats.no_nested_containers([member.roles for member in members])]
-            members_total = [member.id for member in set(members)]
-            individual_roles = " ".join([f'{member.id}: {" ".join(role.id for role in roles)}' for member, roles in individual_roles])
+            member_roles = [str(role.id) for role in formats.no_nested_containers([member.roles for member in members])]
+            members_total = [str(member.id) for member in set(members)]
+            individual_roles = "\n\n".join([f'{str(member.id)}: {" ".join(str(role.id) for role in roles)}' for member, roles in individual_roles])
 
-            role_members = [member.id for member in formats.no_nested_containers([role.members for role in roles])]
-            roles_total = [role.id for role in set(roles)]
-            individual_members = " ".join([f'{role.id}: {" ".join(member.id for member in members)}' for role, members in individual_members])
+            role_members = [str(member.id) for member in formats.no_nested_containers([role.members for role in roles])]
+            roles_total = [str(role.id) for role in set(roles)]
+            individual_members = "\n\n".join([f'{str(role.id)}: {" ".join(str(member.id) for member in members)}' for role, members in individual_members])
         else:
             member_roles = [role.mention for role in formats.no_nested_containers([member.roles for member in members])]
             members_total = [member.mention for member in set(members)]
-            individual_roles = " ".join([f'{member.mention}: {" ".join(role.mention for role in roles)}' for member, roles in individual_roles])
+            individual_roles = "\n\n".join([f'{member.mention}: {" ".join(role.mention for role in roles)}' for member, roles in individual_roles])
 
             role_members = [member.mention for member in formats.no_nested_containers([role.members for role in roles])]
             roles_total = [role.mention for role in set(roles)]
-            individual_members = " ".join([f'{role.mention}: {" ".join(member.mention for member in members)}' for role, members in individual_members])
+            individual_members = "\n\n".join([f'{role.mention}: {" ".join(member.mention for member in members)}' for role, members in individual_members])
 
 
         if members:
-            embed_members = self.role_list_process('Members with roles:', members_total, member_roles, individual_roles, ctx.author.top_role.color.value)
-            await ctx.send(embed = embed_members)
+            if member_roles:
+                embed_members = self.role_list_process('Members with roles:', members_total, member_roles, individual_roles, ctx.author.top_role.color.value)
+                await ctx.send(embed = embed_members)
+            else:
+                await ctx.send(f'No roles assigned to {", ".join(members_total)}')
 
         if roles:
-            embed_roles = self.role_list_process('Roles with members:', roles_total, role_members, individual_members, ctx.author.top_role.color.value)
-            await ctx.send(embed = embed_roles)
+            if role_members:
+                embed_roles = self.role_list_process('Roles with members:', roles_total, role_members, individual_members, ctx.author.top_role.color.value)
+                await ctx.send(embed = embed_roles)
+            else:
+                await ctx.send(f'No members assigned to {", ".join(roles_total)}')
 
         elif not members:
             if ids:

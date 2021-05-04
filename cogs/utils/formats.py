@@ -1,15 +1,16 @@
 from discord.ext import commands
 
 def compare_containers(*containers):
+    total = []
     shared = []
 
     for container in containers:
-        for entry in container: shared.append(entry)
+        for entry in container: total.append(entry)
 
-    for entry in shared:
-        if shared.count(entry) < len(containers): shared.remove(entry)
+    for entry in total:
+        if total.count(entry) == len(containers): shared.append(entry)
 
-    return shared
+    return set(shared)
 
 def no_nested_containers(container):
     container = list(container)

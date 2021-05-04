@@ -70,24 +70,25 @@ class Mod(commands.Cog):
         `?purge 341331627839848448`
         """
         for member in members:
-            member.remove_roles(*member.roles, reason = reason)
+            roles = [role for role in member.roles if role.name != '@everyone']
+            await member.remove_roles(*roles, reason = reason)
             if role:
-                member.add_roles(role, reason = reason)
+                await member.add_roles(role, reason = reason)
         if members:
-            if role: await ctx.send(f'Purged roles from {member.name for member in members}. Added role {role.name}. Reason: {reason}')
-            else: await ctx.send(f'Purged roles from {member.name for member in members}. Reason: {reason}')
+            if role: await ctx.send(f'Purged roles from {", ".join(member.name for member in members)}. Added role {role.name}. Reason: {reason}')
+            else: await ctx.send(f'Purged roles from {", ".join(member.name for member in members)}. Reason: {reason}')
 
     @commands.command(aliases = ['create_mute'])
-    @chekcs.is_officer()
+    @checks.is_officer()
     async def create_mute_role(self, ctx):
         if 'muted' in [role.name for role in ctx.guild.roles]:
             mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
             for channel in ctx.guild.channels:
                 if mute_role not in channel.overwrites: await channel.set_permissions(mute_role, reason = 'mute role update', send_messages = False)
-            await ctx.send('"muted" role already updated.')
+            await ctx.send('"muted" role updated.')
         else:
-            mute_role = ctx.guild.create_role(reason = "mute role creation", name = 'muted')
-            await mute_role.edit(position = self.top_role.position - 1, reason = "updating mute role position")
+            mute_role = await ctx.guild.create_role(reason = "mute role creation", name = 'muted')
+            await mute_role.edit(position = ctx.guild.me.top_role.position - 1, reason = "updating mute role position")
             for channel in ctx.guild.channels:
                 await channel.set_permissions(mute_role, reason = 'mute role initialization', send_messages = False)
 
@@ -101,12 +102,12 @@ class Mod(commands.Cog):
         `?mute Nyx_2`
         `?mute 341331627839848448 Nyx_2#8763 Can't stop bickering`
         """
-        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
-        for member in members:
-            member.add_roles(mute_role, reason = f'Muted by {ctx.author.name} for reason: {reason}')
-        else:
+        if not members:
             await ctx.send('Provide a member to mute.')
             return
+        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+        for member in members:
+            await member.add_roles(mute_role, reason = f'Muted by {ctx.author.name} for reason: {reason}')
         await ctx.send(f'Muted {", ".join([member.name for member in members])}.')
 
     @commands.command()
@@ -119,12 +120,12 @@ class Mod(commands.Cog):
         `?unmute Nyx_2`
         `?unmute 341331627839848448 Nyx_2#8763 Issue resolved.`
         """
-        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
-        for member in members:
-            member.remove_roles(mute_role, reason = f'Unmuted by {ctx.author.name} for reason: {reason}')
-        else:
+        if not members:
             await ctx.send('Provide a muted member to unmuted')
             return
+        mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
+        for member in members:
+            await member.remove_roles(mute_role, reason = f'Unmuted by {ctx.author.name} for reason: {reason}')
         await ctx.send(f'Unmuted {", ".join([member.name for member in members])}')
 
     @commands.command()
@@ -135,12 +136,14 @@ class Mod(commands.Cog):
 
         Anyone without the Officer role can no longer send messages.
         No roles above the bots role will be changed.
+        Member overrides are ignored.
+        The lock and unlock commands aren't very advanced, so they may not work properly in certain circumstances.
 
         Usage: `?lock`
         """
         for role in ctx.channel.changed_roles:
-            if role.id != 444548579839705089 and role.position < self.top_role.position:
-                ctx.channel.set_permissions(role, reason = f"Channel lock by {ctx.author.name}", send_messages = False)
+            if role.id != 444548579839705089 and role.position < ctx.guild.me.top_role.position:
+                await ctx.channel.set_permissions(role, reason = f"Channel lock by {ctx.author.name}", send_messages = False)
         await ctx.send('Channel locked.')
 
     @commands.command()
@@ -151,6 +154,8 @@ class Mod(commands.Cog):
 
         Anyone without the muted role can send messages once again.
         No roles above the bots role will be changed.
+        Member overrides ignored.
+        The lock and unlock commands aren't very advanced, so they may not work properly in certain circumstances.
 
         Usage: `?unlock`
 
@@ -158,8 +163,8 @@ class Mod(commands.Cog):
         """
         mute_role = discord.utils.get(ctx.guild.roles, name = 'muted')
         for role in ctx.channel.changed_roles:
-            if role != mute_role and role.position < self.top_role.position:
-                ctx.channel.set_permissions(role, reason = f"Channel unlock by {ctx.author.name}", send_messages = True)
+            if role != mute_role and role.position < ctx.guild.me.top_role.position:
+                await ctx.channel.set_permissions(role, reason = f"Channel unlock by {ctx.author.name}", send_messages = True)
         await ctx.send('Channel unlocked.')
 
 def setup(bot):
