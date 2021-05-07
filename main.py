@@ -123,16 +123,27 @@ async def shutdown(ctx):
 
 @bot.event
 async def on_command_error(ctx, error):
+
     if isinstance(error, commands.CommandInvokeError):
         if isinstance(error.original, discord.Forbidden):
             await ctx.send('I have insufficient permissions to perform this task.')
-        else:
-            await ctx.send(error)
-            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            return
+
+    if isinstance(error, commands.NotOwner) or isinstance(error, commands.MissingPermissions):
+        await ctx.send('You are not permitted to use this command.')
+    elif isinstance(error, commands.MissingRole):
+        await ctx.send(f'You must have the {error.missing_role} role to use this command.')
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send(f'I require the following additional permissions for this command: {error.missing_perms}')
+    elif isinstance(error, commands.BotMissingRole):
+        await ctx.send(f'I require the {error.missing_role} role for this command.')
+
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f'`{str(error.param).split(":")[0]}` is a required specification.')
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send(error)
     elif isinstance(error, commands.CommandNotFound):
         return
-    elif isinstance(error, commands.CheckFailure):
-        await ctx.send('You are not permitted to use this command.')
     else:
         await ctx.send(error)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

@@ -11,7 +11,7 @@ class Mod(commands.Cog):
 
     @commands.command()
     @checks.is_officer()
-    async def kick(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
+    async def kick(self, ctx, members: commands.Greedy[discord.Member], *, reason = None):
         """
         Kicks the specified member(s) for the optional reason.
 
@@ -33,7 +33,7 @@ class Mod(commands.Cog):
 
     @commands.command()
     @checks.is_officer()
-    async def ban(self, ctx, members: commands.Greedy[discord.Member] = [], purge_days: int = 0, *, reason = None):
+    async def ban(self, ctx, members: commands.Greedy[discord.Member], purge_days: int = 0, *, reason = None):
         """
         Bans the specified member(s) for the optional reason, purging messages from the amount of days specified (max 7).
 
@@ -56,7 +56,7 @@ class Mod(commands.Cog):
 
     @commands.command()
     @checks.is_officer()
-    async def purge(self, ctx, members: commands.Greedy[discord.Member] = [], role: Optional[discord.Role] = None, *, reason = None):
+    async def purge(self, ctx, members: commands.Greedy[discord.Member], role: Optional[discord.Role] = None, *, reason = None):
         """
         Purges all roles from specified members. Optionally add's a role as well. (Useful for converting members to friends)
 
@@ -69,6 +69,10 @@ class Mod(commands.Cog):
         `?purge 341331627839848448 691827198251761735 Inactive`
         `?purge 341331627839848448`
         """
+        if not members:
+            await ctx.send('Specify a member to purge.')
+            return
+        
         for member in members:
             roles = [role for role in member.roles if role.name != '@everyone']
             await member.remove_roles(*roles, reason = reason)
@@ -94,7 +98,7 @@ class Mod(commands.Cog):
 
     @commands.command()
     @checks.is_officer()
-    async def mute(self, ctx, members: commands.Greedy[discord.Member] = [], *, reason = None):
+    async def mute(self, ctx, members: commands.Greedy[discord.Member], *, reason = None):
         """
         Mutes one or multiple members for the optionally provided reason.
 
