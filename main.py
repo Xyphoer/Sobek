@@ -7,6 +7,7 @@ import json
 import traceback
 import sys
 from asqlite import asqlite
+from cogs.utils.formats import compare_containers
 
 
 class MyHelpCommand(commands.HelpCommand):
@@ -68,8 +69,11 @@ async def on_ready():
 async def reload(ctx, *wheels):
     """Reloads a specified extention, or all extentions."""
     if not wheels: wheels = cogwheels
+    wheels = compare_containers(wheels, cogwheels)
+    if not wheels:
+        await ctx.send(f'Failed to find cog(s) {", ".join(wheels)}.')
     m = await ctx.send('reloading...')
-    for wheel in cogwheels:
+    for wheel in wheels:
         try:
             if wheel == 'fun':
                 for role in ctx.guild.roles:
