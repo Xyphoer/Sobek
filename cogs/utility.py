@@ -208,13 +208,6 @@ If you are interested in leading a White Star, please contact an Officer or ws c
         else:
             await ctx.send('No role was specified.')
 
-    @commands.command()
-    async def test(self, ctx):
-        paginator = commands.Paginator(prefix = '', suffix = '')
-        for x in range(5):
-            paginator.add_line(str(x))
-        await ctx.send(paginator.pages)
-
     @commands.command(aliases=['ls'])
     @checks.is_dragon(ws_allowed = True)
     @checks.blocked_channels('lobby', 'mess-hall', 'red-star')
