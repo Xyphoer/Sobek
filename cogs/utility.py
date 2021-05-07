@@ -150,19 +150,16 @@ class Utility(commands.Cog):
         No arguments are required. You may leave out any arguments and provide the others, so long as you maintain the proper order for the arguments you do provide.
 
         Never clears pinned messages."""
-        if ctx.channel.name in allowed_channels:
-            if members: final_message = f'Cleared from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, oldest first = {old_first}.'
-            else: final_message = f'Cleared from {amount if amount else "all"} messages, oldest first = {old_first}.'
-            def check(m):
-                if not members:
-                    return m.pinned == False
+        if members: final_message = f'Cleared from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, oldest first = {old_first}.'
+        else: final_message = f'Cleared from {amount if amount else "all"} messages, oldest first = {old_first}.'
+        def check(m):
+            if not members:
+                return m.pinned == False
 
-                return m.pinned == False and m.author in members
-            await ctx.message.delete()
-            await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
-            await ctx.send(final_message, delete_after = 10.0)
-        else:
-            await ctx.send(f'Command not permitted in this channel.')
+            return m.pinned == False and m.author in members
+        await ctx.message.delete()
+        await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
+        await ctx.send(final_message, delete_after = 10.0)
 
     @commands.command()
     @checks.is_commander()
@@ -210,6 +207,13 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             else: await ctx.send('Could not find `white-star-preparation`')
         else:
             await ctx.send('No role was specified.')
+
+    @commands.command()
+    async def test(self, ctx):
+        paginator = commands.Paginator(prefix = '', suffix = '')
+        for x in range(5):
+            paginator.add_line(str(x))
+        await ctx.send(paginator.pages)
 
     @commands.command(aliases=['ls'])
     @checks.is_dragon(ws_allowed = True)
@@ -265,9 +269,15 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 m = await cursor.fetchall()
                 m1 = {m0[0]: (m0[1], m0[2], m0[3]) for m0 in m}
                 final = {}
-                for member in member1 if member1 else m1:
+                for memb in member1 if member1 else m1:
+                    member = memb
+
                     if type(member) == int:
                         member = ctx.guild.get_member(member)
+                        if not member:
+                            await cursor.execute('DELETE FROM lastseen WHERE member=?', (memb))
+                            continue
+
                     if member.id in m1:
                         container = []
                         for element in m1[member.id]:
@@ -321,17 +331,51 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 elif sorting.lower() == 'wr':
                     send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 2), reverse=True)
 
-                ls_embed = discord.Embed(title='Last Seen',
-                    description = '\n'.join(send))
-                ls_embed.set_footer(text='If a mentioned member "has not been seen" or is not tracked they will not show up.\n'
-                    'If a member is in the invisible status, their last seen time will be from their last time online in any status other than invisible\n'
-                    'The displayed status is the last status they were seen in other than offline (offline may appear in rare circumstances).\n'
-                    'Last Seen only applies to members with the Dragon role or a ws role.')
-                if len(ls_embed) <= 6000:
-                    await ctx.send(embed=ls_embed)
-                else:
-                    await ctx.send('Embed is too long. Please specify role(s)/member(s) to get a shorter list.\n\
-                        If this bothers you let Nyx_2#8763 (341331627839848448) know, and maybe a page feature will be implemented.')
+                paginator = commands.Paginator(prefix = '', suffix = '')
+
+                for entry in send:
+                    paginator.add_line(entry)
+
+                pages = {}
+                index = 1
+
+                for page in paginator.pages:
+
+                    ls_embed = discord.Embed(title='Last Seen',
+                        description = page)
+                    ls_embed.set_footer(text='If a mentioned member "has not been seen" or is not tracked they will not show up.\n'
+                        'If a member is in the invisible status, their last seen time will be from their last time online in any status other than invisible\n'
+                        'The displayed status is the last status they were seen in other than offline (offline may appear in rare circumstances).\n'
+                        'Last Seen only applies to members with the Dragon role or a ws role.\n'
+                        f'Page {index}/{len(paginator.pages)}')
+
+                    pages[index] = ls_embed
+                    index += 1
+
+                index = 1
+                message = await ctx.send(embed = pages[index])
+
+                if len(pages) > 1:
+                    await message.add_reaction('◀️')
+                    await message.add_reaction('▶️')
+
+                    def check(reaction, user):
+                        return user == ctx.author and str(reaction.emoji) in ('◀️', '▶️')
+
+                    while True:
+                        try:
+                            reaction, user = await self.bot.wait_for('reaction_add', timeout = 60.0, check = check)
+                        except asyncio.TimeoutError:
+                            await message.clear_reactions()
+                            break
+                        else:
+                            await message.remove_reaction(reaction, ctx.author)
+                            if str(reaction.emoji) == '▶️' and index < len(pages):
+                                index += 1
+                                await message.edit(embed = pages[index])
+                            elif str(reaction.emoji) == '◀️' and index > 1:
+                                index -= 1
+                                await message.edit(embed = pages[index])
 
     @commands.command(aliases=['rl'])
     async def rolelist(self, ctx, members: commands.Greedy[discord.Member] = [], roles: commands.Greedy[discord.Role] = [], ids: bool = False):
