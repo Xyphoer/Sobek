@@ -30,15 +30,35 @@ class Fun(commands.Cog):
 
     @commands.command(aliases = ['colour'])
     @checks.is_dragon()
-    async def color(self, ctx, int_code: int = None):
+    async def color(self, ctx, code = None):
         """
         Assigns or updates a personal, 24 hour, color role with the provided color or a random color.
 
         Usage:
         `?color`
         `?color 12648430`
+        `?colour 0xc0ffee`
+        `?color c0ffee`
         """
-        assign_color = int_code if int_code else discord.Colour.random()
+        if code:
+            try:
+                code = int(code)
+                if code > 16777215:
+                    await ctx.send('Color value must be 16777215 or less.')
+                    return
+                assign_color = code
+            except ValueError:
+                try:
+                    if code[:2] == '0x':
+                        assign_color = int(code, 0)
+                    else:
+                        assign_color = int(code, 16)
+                except ValueError:
+                    await ctx.send('Color code must be an integer or hex value.')
+                    return
+
+        else:
+            assign_color = discord.Colour.random()
 
         if 'color' not in [role.name for role in ctx.author.roles]:
             color_role = await ctx.guild.create_role(reason = 'color assignment for' + ctx.author.name, name = 'color', color = assign_color)
