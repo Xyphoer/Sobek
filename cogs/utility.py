@@ -7,6 +7,71 @@ from datetime import datetime, timezone
 from typing import Optional
 from .utils import formats, checks
 
+class LastSeen:
+    """Class to process and handle information regarding tracked members for the lastseen command."""
+
+    status_chart = {
+    'online' : '<:status_online:830914158387527681>',
+    'streaming' : '<:status_streaming:830914213860999198>',
+    'dnd' : '<:status_dnd:830914192294674485>',
+    'idle' : '<:status_idle:830914177937047612>',
+    'offline' : '<:status_offline:835534710297198602>'
+    }
+
+    def __init__(self, member, stored_time, ws_time, status):
+        self.member = member
+
+        self.name = member.name
+
+        try:
+            self.passed_time = self.process_time(stored_time)
+        except ValueError:
+            self.passed_time = stored_time
+
+        try:
+            self.passed_ws_time = self.process_time(ws_time)
+        except ValueError:
+            self.passed_ws_time = ws_time
+
+        self.status = status
+
+        self.sendable = f'{self.status_chart[self.status]}{self.member.mention}: {self.passed_time}, __last ws__: {self.passed_ws_time}'
+
+    def process_time(self, time):
+        passed_time = datetime.now(timezone.utc) - datetime.strptime(time, '%Y-%m-%d %H:%M:%S.%f%z')
+        m_amount, h_amount = math.modf(self.passed_time.seconds / 3600)
+        days, hours, minutes = self.passed_time.days, int(h_amount), int(m_amount * 60)
+        if days != 0:
+            time_since_seen = f'{days}d {hours}h {minutes}m'
+        elif hours != 0:
+            time_since_seen = f'{hours}h {minutes}m'
+        elif minutes != 0:
+            time_since_seen = f'{minutes}m'
+        else:
+            time_since_seen = 'Now'
+
+        return time_since_seen
+
+    def sorting(self, method):
+        if method == 'a':
+            return self.name
+
+        elif method == 't':
+            if self.passed_time == 'Now':
+                return 0
+            elif self.passed_time == 'Never':
+                return float('inf')
+            else:
+                return self.passed_time
+
+        elif method == 'w':
+            if self.passed_ws_time == 'Now':
+                return 0
+            elif self.passed_ws_time == 'Never':
+                return float('inf')
+            else:
+                return self.passed_ws_time
+
 class Utility(commands.Cog):
     """Commands orientated around general utility, such as certain role management, self editing, and message clearing."""
 
@@ -227,13 +292,6 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             `?ls tr member role1 role2`
         
         Note: Members/Roles can be specified by mention, name, or id. Multi word names must be wrapped in quotes unless mentioned."""
-        status = {
-        'online' : '<:status_online:830914158387527681>',
-        'streaming' : '<:status_streaming:830914213860999198>',
-        'dnd' : '<:status_dnd:830914192294674485>',
-        'idle' : '<:status_idle:830914177937047612>',
-        'offline' : '<:status_offline:835534710297198602>'
-        }
 
         member1 = set()
         roles1 = set()
@@ -241,7 +299,7 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             try:
                 sorting = await commands.MemberConverter().convert(ctx, str(sorting))
                 member1.add(sorting)
-            except Exception as e:
+            except:
                 try:
                     sorting = await commands.RoleConverter().convert(ctx, str(sorting))
                     roles1.add(sorting)
@@ -261,7 +319,8 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 await cursor.execute("SELECT * FROM lastseen")
                 m = await cursor.fetchall()
                 m1 = {m0[0]: (m0[1], m0[2], m0[3]) for m0 in m}
-                final = {}
+
+                final = []
                 for memb in member1 if member1 else m1:
                     member = memb
 
@@ -272,103 +331,63 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                             continue
 
                     if member.id in m1:
-                        container = []
-                        for element in m1[member.id]:
-                            try:
-                                datetime_object = datetime.strptime(element, '%Y-%m-%d %H:%M:%S.%f%z')
-                                delta_difference = datetime.now(timezone.utc) - datetime_object
-                                m_amount, h_amount = math.modf(delta_difference.seconds / 3600)
-                                days, hours, minutes = delta_difference.days, int(h_amount), int(m_amount * 60)
-                                if days != 0:
-                                    time_since_seen = f'{days}d {hours}h {minutes}m'
-                                elif hours != 0:
-                                    time_since_seen = f'{hours}h {minutes}m'
-                                elif minutes != 0:
-                                    time_since_seen = f'{minutes}m'
-                                else:
-                                    time_since_seen = 'Now'
-                                container.append(time_since_seen)
-                            except ValueError:
-                                container.append(element)
-                        final[f'{status[container[-1]]} {member.mention}'] = ', __last ws__: '.join(container[:-1])
-                send = []
-                for record in final:
-                    send.append(f'**{record}**: {final[record]}')
+                        stored_time, ws_time, status = m1[member.id]
+                        final.append(LastSeen(member, stored_time, ws_time, status))
 
-                def key_ago(info, index):
-                    info = info.split(':')[index].strip(', __last ws__').strip().split()
-                    if info[0] == 'No':
-                        return 0
-                    elif info[0] == 'Never':
-                        return float('inf')
-                    total_ago = 0
-                    for amount in info:
-                        if 'd' in amount:
-                            total_ago += int(amount.strip('d')) * 1440
-                        if 'h' in amount:
-                            total_ago += int(amount.strip('h')) * 60
-                        if 'm' in amount:
-                            total_ago += int(amount.strip('m'))
-                    return total_ago
+        if 'r' in sorting:
+            final.sort(key = lambda ago: ago.sorting(sorting[0]), reverse = True)
+        else:
+            final.sort(key = lambda ago: ago.sorting(sorting))
 
-                if sorting.lower() == 'a':
-                    send.sort(key = lambda ago: str.lower(ago.split('>')[-1]))
-                elif sorting.lower() == 'ar':
-                    send.sort(key = lambda ago: str.lower(ago.split('>')[-1]), reverse=True)
-                elif sorting.lower() == 't':
-                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 1))
-                elif sorting.lower() == 'tr':
-                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 1), reverse=True)
-                elif sorting.lower() == 'w':
-                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 2))
-                elif sorting.lower() == 'wr':
-                    send.sort(key = lambda ago: key_ago(ago.split('>')[-1], 2), reverse=True)
+        send = []
+        for obj in final:
+            send.append(obj.sendable)
 
-                paginator = commands.Paginator(prefix = '', suffix = '')
+        paginator = commands.Paginator(prefix = '', suffix = '')
 
-                for entry in send:
-                    paginator.add_line(entry)
+        for entry in send:
+            paginator.add_line(entry)
 
-                pages = {}
-                index = 1
+        pages = {}
+        index = 1
 
-                for page in paginator.pages:
+        for page in paginator.pages:
 
-                    ls_embed = discord.Embed(title='Last Seen',
-                        description = page)
-                    ls_embed.set_footer(text='If a mentioned member "has not been seen" or is not tracked they will not show up.\n'
-                        'If a member is in the invisible status, their last seen time will be from their last time online in any status other than invisible\n'
-                        'The displayed status is the last status they were seen in other than offline (offline may appear in rare circumstances).\n'
-                        'Last Seen only applies to members with the Dragon role or a ws role.\n'
-                        f'Page {index}/{len(paginator.pages)}')
+            ls_embed = discord.Embed(title='Last Seen',
+                description = page)
+            ls_embed.set_footer(text='If a mentioned member "has not been seen" or is not tracked they will not show up.\n'
+                'If a member is in the invisible status, their last seen time will be from their last time online in any status other than invisible\n'
+                'The displayed status is the last status they were seen in other than offline (offline may appear in rare circumstances).\n'
+                'Last Seen only applies to members with the Dragon role or a ws role.\n'
+                f'Page {index}/{len(paginator.pages)}')
 
-                    pages[index] = ls_embed
-                    index += 1
+            pages[index] = ls_embed
+            index += 1
 
-                index = 1
-                message = await ctx.send(embed = pages[index])
+        index = 1
+        message = await ctx.send(embed = pages[index])
 
-                if len(pages) > 1:
-                    await message.add_reaction('◀️')
-                    await message.add_reaction('▶️')
+        if len(pages) > 1:
+            await message.add_reaction('◀️')
+            await message.add_reaction('▶️')
 
-                    def check(reaction, user):
-                        return user == ctx.author and str(reaction.emoji) in ('◀️', '▶️')
+            def check(reaction, user):
+                return user == ctx.author and str(reaction.emoji) in ('◀️', '▶️')
 
-                    while True:
-                        try:
-                            reaction, user = await self.bot.wait_for('reaction_add', timeout = 60.0, check = check)
-                        except asyncio.TimeoutError:
-                            await message.clear_reactions()
-                            break
-                        else:
-                            await message.remove_reaction(reaction, ctx.author)
-                            if str(reaction.emoji) == '▶️' and index < len(pages):
-                                index += 1
-                                await message.edit(embed = pages[index])
-                            elif str(reaction.emoji) == '◀️' and index > 1:
-                                index -= 1
-                                await message.edit(embed = pages[index])
+            while True:
+                try:
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout = 60.0, check = check)
+                except asyncio.TimeoutError:
+                    await message.clear_reactions()
+                    break
+                else:
+                    await message.remove_reaction(reaction, ctx.author)
+                    if str(reaction.emoji) == '▶️' and index < len(pages):
+                        index += 1
+                        await message.edit(embed = pages[index])
+                    elif str(reaction.emoji) == '◀️' and index > 1:
+                        index -= 1
+                        await message.edit(embed = pages[index])
 
     @commands.command(aliases=['rl'])
     async def rolelist(self, ctx, members: commands.Greedy[discord.Member] = [], roles: commands.Greedy[discord.Role] = [], ids: bool = False):
