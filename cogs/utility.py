@@ -39,8 +39,8 @@ class LastSeen:
 
     def process_time(self, time):
         passed_time = datetime.now(timezone.utc) - datetime.strptime(time, '%Y-%m-%d %H:%M:%S.%f%z')
-        m_amount, h_amount = math.modf(self.passed_time.seconds / 3600)
-        days, hours, minutes = self.passed_time.days, int(h_amount), int(m_amount * 60)
+        m_amount, h_amount = math.modf(passed_time.seconds / 3600)
+        days, hours, minutes = passed_time.days, int(h_amount), int(m_amount * 60)
         if days != 0:
             time_since_seen = f'{days}d {hours}h {minutes}m'
         elif hours != 0:
