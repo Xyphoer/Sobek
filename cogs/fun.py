@@ -34,12 +34,25 @@ class Fun(commands.Cog):
         """
         Assigns or updates a personal, 24 hour, color role with the provided color or a random color.
 
+        Can remove your color role by specifying 'remove' as the code.
+
         Usage:
         `?color`
         `?color 12648430`
         `?colour 0xc0ffee`
         `?color c0ffee`
+        `?color remove`
         """
+        if code == 'remove':
+            for role in ctx.member.roles:
+                if role.name == 'color':
+                    ctx.member.remove_roles(role, reason = 'color role removal')
+                    await ctx.send('Removed color role.')
+                    return
+            else:
+                await ctx.send('No color role to remove.')
+                return
+
         if code:
             try:
                 code = int(code)
@@ -61,14 +74,21 @@ class Fun(commands.Cog):
             assign_color = discord.Colour.random()
 
         if 'color' not in [role.name for role in ctx.author.roles]:
-            color_role = await ctx.guild.create_role(reason = 'color assignment for' + ctx.author.name, name = 'color', color = assign_color)
-            color_role_id = color_role.id
-            await color_role.edit(position = ctx.guild.me.top_role.position - 2)
-            await ctx.author.add_roles(color_role, reason = 'color assignment')
-            await ctx.send(f'Assigned color role with hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
-            await asyncio.sleep(86400)
-            color_role = ctx.guild.get_role(color_role_id)
-            if color_role: await color_role.delete(reason = 'color role time up.')
+            color_role = []
+            for role in ctx.guild.roles[::-1]:
+                if role.name == 'color':
+                    color_role.append(role)
+                    if role.members == []:
+                        color_role = role
+                        break
+            else:
+                color_role = random.choice(color_role)
+                for member in color_role.members:
+                    member.remove_roles(color_role, reason = 'Swapping member')
+
+            await ctx.author.add_roles(role, reason = 'color assignment')
+            await ctx.send(f'Assigned color with hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
+
         else:
             color_role = [role for role in ctx.author.roles if role.name == 'color'][0]
             await color_role.edit(color = assign_color)

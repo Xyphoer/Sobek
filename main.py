@@ -75,10 +75,6 @@ async def reload(ctx, *wheels):
     m = await ctx.send('reloading...')
     for wheel in wheels:
         try:
-            if wheel == 'fun':
-                for role in ctx.guild.roles:
-                    if role.name == 'color':
-                        await role.delete(reason = 'reloading fun cog, color role purge.')
             bot.reload_extension(f'cogs.{wheel}')
         except Exception as e:
             await ctx.send(f'Error reloading {wheel}')
@@ -137,6 +133,8 @@ async def on_command_error(ctx, error):
         await ctx.send(f'I require the following additional permissions for this command: {error.missing_perms}')
     elif isinstance(error, commands.BotMissingRole):
         await ctx.send(f'I require the {error.missing_role} role for this command.')
+    elif isinstance(error, commands.CheckFailure):
+        await ctx.send('The requirements for you to use this command have not been met.')
 
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(f'`{str(error.param).split(":")[0]}` is a required specification.')
