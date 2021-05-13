@@ -3,7 +3,6 @@ from discord.ext import commands
 import asyncio
 import json
 from asqlite import asqlite
-import re
 from .utils import checks
 from .utils.formats import time_converter
 
@@ -14,7 +13,7 @@ class General(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def remind(self, ctx, duration, *, content):
+    async def remind(self, ctx, duration, *, content = ''):
         """Reminds you of something a specified duration later.
 
         When using multiple styles of time, either write them without spaces, or wrap them in quotes.

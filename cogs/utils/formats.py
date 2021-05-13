@@ -1,4 +1,5 @@
 from discord.ext import commands
+import re
 
 def compare_containers(*containers):
     total = []
@@ -46,18 +47,21 @@ def time_converter(duration):
     if len(style) < len(time):
         return False
     for amount in time.copy():
-        if style[time.index(amount)] == 'd' and days == 0:
-            days = float(amount)
+        if style[time.index(amount)] == 'd' and value['days'] == 0:
+            value['days'] = float(amount)
             time.remove(amount)
             style.remove('d')
-        elif style[time.index(amount)] == 'h' and hours == 0:
-            hours = float(amount)
+        elif style[time.index(amount)] == 'h' and value['hours'] == 0:
+            value['hours'] = float(amount)
             time.remove(amount)
             style.remove('h')
-        elif style[time.index(amount)] == 'm' and minutes == 0:
-            minutes = float(amount)
+        elif style[time.index(amount)] == 'm' and value['minutes'] == 0:
+            value['minutes'] = float(amount)
             time.remove(amount)
             style.remove('m')
     value['total time'] = value['days'] * 86400 + value['hours'] * 3600 + value['minutes'] * 60
+
+    if not value['total time']:
+        return False
 
     return value
