@@ -209,17 +209,29 @@ class Utility(commands.Cog):
     async def clear(self, ctx, amount: Optional[int] = None, *args):
         """Clears all or a specified amount (to search through) of messages in a channel.
 
-        
+        The amount provided is the amount the bot will search through. This is not necissarily the amount it will delete.
 
+        **Simple Usage:**
         Provide no arguments to clear all. 
         Ex. `?clear`
         Provide an integer to clear from a specified amount. 
         Ex. `?clear 10`
-        Provide "True" or "False" to change between oldest first, and newest first. Default is true, which corresponds to oldest first.
-        Ex. `?clear 10 False`
-        Provide any number of members (via id, mention, or display name) to only remove messages from those members.
-        Ex. `?clear 10 False 341331627839848448`
-        No arguments are required. You may leave out any arguments and provide the others, so long as you maintain the proper order for the arguments you do provide.
+        
+        **Advanced Usage:**
+        These are all optional parameters.
+        
+        `--members`   : alias `-m`. One or more members to delete messages from (will ignore all other messages).
+        `--before`    : alias `-b`. A message or time ago. Only deletes messages before the specified message or time.
+        `--after`     : alias `-a`. A message or time ago. Only deletes messages after the specified message or time.
+        `--new-first` : alias `-n`. If provided will delete newer messages first as opposed to the default old first.
+
+        Members can be specified by id, mention, name, etc.
+        Messages can be specified by id, link, or channel_id-message_id
+        Time ago must be specified like so: "`x`d`x`h`x`m". No spaces, replace `x` with an integer or decimal. (Same way it's specified for `?remind`)
+        
+        Examples:
+        `?clear 5 --members 677533623808819230 341331627839848448 -b 30m`
+        `?clear -n --after 841036302522384437 --before 50m` (Note that if the `after` message here is earlier than 50m ago nothing will be deleted)
 
         Never clears pinned messages."""
         parser = Arguments(description = 'Parser for the clear command.', add_help = False, allow_abbrev = False)
