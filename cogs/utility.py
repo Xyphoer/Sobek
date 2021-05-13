@@ -2,10 +2,15 @@ import discord
 from discord.ext import tasks, commands
 import asyncio
 import math
+import argparse
 from asqlite import asqlite
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from .utils import formats, checks
+
+class Arguments(argparse.ArgumentParser):
+    def error(self, message):
+        raise RuntimeError(message)
 
 class LastSeen:
     """Class to process and handle information regarding tracked members for the lastseen command."""
@@ -201,8 +206,10 @@ class Utility(commands.Cog):
     @commands.command()
     @checks.is_commander()
     @checks.allowed_channels('testing', 'orders', 'dump-n-grab', 'observations', 'rocket-support')
-    async def clear(self, ctx, amount: Optional[int] = None, old_first: Optional[bool] = True, members: commands.Greedy[discord.Member] = None):
+    async def clear(self, ctx, amount: Optional[int] = None, *args):
         """Clears all or a specified amount (to search through) of messages in a channel.
+
+        
 
         Provide no arguments to clear all. 
         Ex. `?clear`
@@ -215,16 +222,60 @@ class Utility(commands.Cog):
         No arguments are required. You may leave out any arguments and provide the others, so long as you maintain the proper order for the arguments you do provide.
 
         Never clears pinned messages."""
-        if members: final_message = f'Cleared from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, oldest first = {old_first}.'
-        else: final_message = f'Cleared from {amount if amount else "all"} messages, oldest first = {old_first}.'
+        parser = Arguments(description = 'Parser for the clear command.', add_help = False, allow_abbrev = False)
+
+        parser.add_argument('-m', '--members', action = 'extend', nargs = '+')
+        parser.add_argument('-b', '--before')
+        parser.add_argument('-a', '--after')
+        parser.add_argument('-n', '--new-first', dest = 'old_first', action = 'store_false', default = True)
+
+        try:
+            args = parser.parse_args(args)
+        except Exception as e:
+            return await ctx.send(str(e))
+
+        members = []
+        if args.members:
+            try:
+                for member in args.members:
+                    members.append(await commands.MemberConverter().convert(ctx, member))
+            except commands.MemberNotFound:
+                await ctx.send('Could not find member ', member)
+                return
+
+
+        async def converter(message):
+            try:
+                return await commands.MessageConverter().convert(ctx, message)
+            except Exception:
+                return formats.time_converter(message)
+
+        if args.before:
+            args.before = await converter(args.before)
+            if not args.before:
+                await ctx.send('Cannot understand `--before` input. Allowed formats are a message or a length of time ago.')
+                return
+            if type(args.before) != discord.Message:
+                args.before = datetime.utcnow() - timedelta(days = args.before['days'], hours = args.before['hours'], minutes = before['minutes'])
+        if args.after:
+            args.after = await converter(args.after)
+            if not args.after:
+                await ctx.send('Cannot understand `--after` input. Allowed formats are a message or a length of time ago.')
+                return
+            if type(args.after) != discord.Message:
+                args.after = datetime.utcnow() - timedelta(days = args.after['days'], hours = args.after['hours'], minutes = args.after['minutes'])
+
         def check(m):
             if not members:
                 return m.pinned == False
 
             return m.pinned == False and m.author in members
+
         await ctx.message.delete()
-        await ctx.channel.purge(limit=amount, check=check, oldest_first=old_first)
-        await ctx.send(final_message, delete_after = 10.0)
+        deleted = await ctx.channel.purge(limit = amount, check = check, before = args.before, after = args.after, oldest_first = args.old_first)
+        
+        if members: await ctx.send(f'Cleared {len(deleted)} messages from {amount if amount else "all"} messages, messages from {", ".join([member.name for member in members])}, {"oldest first" if args.old_first else "newest first"}.', delete_after = 8.0)
+        else: await ctx.send(f'Cleared {len(deleted)} messages from {amount if amount else "all"} messages, {"oldest first" if args.old_first else "newest first"}.', delete_after = 8.0)
 
     @commands.command()
     @checks.is_commander()
