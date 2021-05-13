@@ -87,6 +87,7 @@ class Fun(commands.Cog):
                     member.remove_roles(color_role, reason = 'Swapping member')
 
             await ctx.author.add_roles(role, reason = 'color assignment')
+            await role.edit(color = assign_color)
             await ctx.send(f'Assigned color with hex code: {hex(color_role.color.value)} int code: {color_role.color.value}')
 
         else:
