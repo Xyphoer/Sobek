@@ -236,7 +236,7 @@ class Utility(commands.Cog):
         Never clears pinned messages."""
         parser = Arguments(description = 'Parser for the clear command.', add_help = False, allow_abbrev = False)
 
-        parser.add_argument('-m', '--members', action = 'extend', nargs = '+')
+        parser.add_argument('-m', '--members', action = 'append', nargs = '+')
         parser.add_argument('-b', '--before')
         parser.add_argument('-a', '--after')
         parser.add_argument('-n', '--new-first', dest = 'old_first', action = 'store_false', default = True)
@@ -248,6 +248,7 @@ class Utility(commands.Cog):
 
         members = []
         if args.members:
+            args.members = formats.no_nested_containers(args.members)
             try:
                 for member in args.members:
                     members.append(await commands.MemberConverter().convert(ctx, member))
