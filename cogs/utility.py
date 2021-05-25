@@ -103,10 +103,21 @@ class Utility(commands.Cog):
         before_roles = formats.compare_containers(tracked_roles, [role.id for role in before.roles])
         after_roles = formats.compare_containers(tracked_roles, [role.id for role in after.roles])
 
-        if not before_roles and not after_roles:
-            return
-        
+        if before.raw_status != after.raw_status:
+            async with asqlite.connect('SobekStorage1.db') as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute('SELECT * FROM notify')
+                    row_info = await cursor.fetchall()
+                    m_id = {m[0]: m[1:] for m in row_info}
+                    if after.id in m_id and after.raw_status != 'offline':
+                        await formats.process_notify(self, after, *m_id[after.id])
+                        await cursor.execute('DELETE FROM notify WHERE member=?', (after.id))
+                        await conn.commit()
+
         if before.raw_status == after.raw_status and before_roles == after_roles:
+            return
+
+        if not before_roles and not after_roles:
             return
 
         ws_role = False
@@ -124,7 +135,7 @@ class Utility(commands.Cog):
                     await conn.commit()
                     return
 
-                if after.id in m1:
+                if after.id in m_id:
                     if after.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, after.id))
                     elif before.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (before.raw_status, after.id))
                 else:
@@ -452,6 +463,25 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                     elif str(reaction.emoji) == '◀️' and index > 1:
                         index -= 1
                         await message.edit(embed = pages[index])
+
+    @commands.command()
+    @checks.is_dragon(ws_allowed = True)
+    async def notify(self, ctx, member: discord.Member):
+        """Pings you when the specified member is no longer offline.
+
+        Usage:
+        `?notify 341331627839848448`
+        `?notify @Nyx_2#8763`
+        """
+        if member.raw_status != 'offline':
+            await ctx.send(f'{member.name}#{member.discriminator} is currently online.')
+            return
+
+        async with asqlite.connect('SobekStorage1.db') as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('INSERT INTO notify (member, author, channel, time_now, url) VALUES (?, ?, ?, ?, ?)', (member.id, ctx.author.id, ctx.channel.id, datetime.now(timezone.utc), ctx.message.jump_url))
+
+        await ctx.send(f'You will be notified when {member.name}#{member.discriminator} is no longer offline.')
 
     @commands.command(aliases=['rl'])
     async def rolelist(self, ctx, members: commands.Greedy[discord.Member] = [], roles: commands.Greedy[discord.Role] = [], ids: bool = False):

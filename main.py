@@ -2,8 +2,6 @@ from discord.ext import commands
 
 import discord
 import asyncio
-import logging
-import json
 import traceback
 import sys
 from asqlite import asqlite
@@ -152,6 +150,8 @@ async def data_storage():
             ##await cursor.execute('''DROP TABLE lastseen''')
             await cursor.execute('''CREATE TABLE IF NOT EXISTS lastseen
                 (member, seen, ws, status)''')
+            await cursor.execute('''CREATE TABLE IF NOT EXISTS notify
+                (member, author, channel, time_now, url)''')
             ##await cursor.execute("ALTER TABLE lastseen ADD COLUMN status text")
             ##for member in bot.get_guild(443747736555225102).get_role(444548579839705089).members:
                 ##await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (member.raw_status, member.id))

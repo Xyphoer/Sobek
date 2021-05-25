@@ -1,5 +1,6 @@
 from discord.ext import commands
 import re
+from datetime import datetime, timezone
 
 def compare_containers(*containers):
     total = []
@@ -65,3 +66,34 @@ def time_converter(duration):
         return False
 
     return value
+
+async def process_notify(self, member, author, channel, time_then, url):
+    channel = self.bot.get_channel(channel)
+    if not channel:
+        return
+
+    author = self.bot.get_user(author)
+    if not author:
+        return
+
+    time_then = datetime.strptime(time_then, '%Y-%m-%d %H:%M:%S.%f%z')
+
+    time_difference = datetime.now(timezone.utc) - time_then
+    total_seconds = int(time_difference.total_seconds())
+    
+    days = int(total_seconds / 86400)
+    total_seconds -= days * 86400
+
+    hours = int(total_seconds / 3600)
+    total_seconds -= hours * 3600
+
+    minutes = int(total_seconds / 60)
+    total_seconds -= minutes * 60
+
+    days = f'{days}d' if days else ''
+    hours = f'{hours}h' if hours else ''
+    minutes = f'{minutes}m' if minutes else ''
+
+    await channel.send(f'{author.mention} {member.mention} is no longer offline.\n\
+    Notification from {days}{hours}{minutes}{total_seconds}s ago.\n\
+    {url}')
