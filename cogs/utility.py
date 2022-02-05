@@ -97,8 +97,8 @@ class Utility(commands.Cog):
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
         
-        #Dragon, WS1-DA, WS2-DA, WS1-H, WS2-H
-        tracked_roles = (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
+        #Dragon, WS1-DA, WS2-DA, WS1-H, WS2-H (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
+        tracked_roles = (718207321511165992, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387, 716430845061365850)
 
         before_roles = formats.compare_containers(tracked_roles, [role.id for role in before.roles])
         after_roles = formats.compare_containers(tracked_roles, [role.id for role in after.roles])
@@ -135,7 +135,7 @@ class Utility(commands.Cog):
                     await conn.commit()
                     return
 
-                if after.id in m_id:
+                if after.id in m1:
                     if after.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (after.raw_status, after.id))
                     elif before.raw_status != 'offline': await cursor.execute('UPDATE lastseen SET status = ? WHERE member = ?', (before.raw_status, after.id))
                 else:
@@ -440,7 +440,10 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             index += 1
 
         index = 1
-        message = await ctx.send(embed = pages[index])
+        if len(pages):
+            message = await ctx.send(embed = pages[index])
+        else:
+            await ctx.send('No recorded activity.')
 
         if len(pages) > 1:
             await message.add_reaction('◀️')
