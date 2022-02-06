@@ -67,7 +67,7 @@ class LastSeen:
             elif self.passed_time == 'Never':
                 return float('inf')
             else:
-                return self.passed_time
+                return formats.time_converter(self.passed_time.strip())['total time']
 
         elif method == 'w':
             if self.passed_ws_time == 'Now':
@@ -75,7 +75,7 @@ class LastSeen:
             elif self.passed_ws_time == 'Never':
                 return float('inf')
             else:
-                return self.passed_ws_time
+                return formats.time_converter(self.passed_ws_time.strip())['total time']
 
 class Utility(commands.Cog):
     """Commands orientated around general utility, such as certain role management, self editing, and message clearing."""
