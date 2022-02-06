@@ -98,7 +98,7 @@ class Utility(commands.Cog):
     async def on_member_update(self, before, after):
         
         #Dragon, WS1-DA, WS2-DA, WS1-H, WS2-H (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
-        tracked_roles = (718207321511165992, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387, 716430845061365850)
+        tracked_roles = (444548579839705089, 700729258145742990, 713122732899827743, 621452020737507350, 713123165416718387)
 
         before_roles = formats.compare_containers(tracked_roles, [role.id for role in before.roles])
         after_roles = formats.compare_containers(tracked_roles, [role.id for role in after.roles])
@@ -553,10 +553,13 @@ If you are interested in leading a White Star, please contact an Officer or ws c
 
     @commands.command()
     @commands.is_owner()
-    async def edit_lastseen(self, ctx, member: discord.Member, type, time_ago):
-        if type != 'seen' and type != 'ws':
+    async def edit_lastseen(self, ctx, member: discord.Member, seen_type, time_ago, track = False):
+        if seen_type != 'seen' and seen_type != 'ws':
             await ctx.send(f'Invalid type `{type}`, valid types are:\nseen\nws')
             return
+        
+        if track = 'y':
+            track = True
 
         detailed_amount = formats.time_converter(time_ago)
 
@@ -572,11 +575,14 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 m_id = await cursor.fetchall()
                 m1 = [m[0] for m in m_id]
 
-                if member.id not in m1:
+                if member.id not in m1 and track:
+                    await cursor.execute('INSERT INTO lastseen (member, seen, ws, status) VALUES(?, ?, ?, ?)', (member.id, 'Never', 'Never', member.raw_status))
+
+                if member.id not in m1 and not track:
                     await ctx.send('Member not tracked.')
-                elif type == 'seen':
+                elif seen_type == 'seen':
                     await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc) - delta_time, member.id))
-                elif type == 'ws':
+                elif seen_type == 'ws':
                     await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (datetime.now(timezone.utc) - delta_time, member.id))
                 await ctx.send('Member info updated')
 
