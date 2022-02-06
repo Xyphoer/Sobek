@@ -280,7 +280,7 @@ class Utility(commands.Cog):
                 await ctx.send('Cannot understand `--before` input. Allowed formats are a message or a length of time ago.')
                 return
             if type(args.before) != discord.Message:
-                args.before = datetime.utcnow() - timedelta(days = args.before['days'], hours = args.before['hours'], minutes = before['minutes'])
+                args.before = datetime.utcnow() - timedelta(days = args.before['days'], hours = args.before['hours'], minutes = args.before['minutes'])
         if args.after:
             args.after = await converter(args.after)
             if not args.after:
@@ -550,6 +550,35 @@ If you are interested in leading a White Star, please contact an Officer or ws c
                 embed_guild_roles = discord.Embed(title = 'Guild Roles:', description = ' '.join(role.mention for role in ctx.guild.roles), color = ctx.author.top_role.color.value)
 
             await ctx.send(embed = embed_guild_roles)
+
+    @commands.command()
+    @commands.is_owner()
+    async def edit_lastseen(self, ctx, member: discord.Member, type, time_ago):
+        if type != 'seen' and type != 'ws':
+            await ctx.send(f'Invalid type `{type}`, valid types are:\nseen\nws')
+            return
+
+        detailed_amount = formats.time_converter(time_ago)
+
+        if not detailed_amount:
+            await ctx.send('Invalid time: make sure to format each amount of time with the appropriate letter.')
+            return
+        
+        delta_time = timedelta(days = detailed_amount['days'], hours = detailed_amount['hours'], minutes = detailed_amount['minutes'])
+        
+        async with asqlite.connect('SobekStorage1.db') as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute('SELECT member FROM lastseen')
+                m_id = await cursor.fetchall()
+                m1 = [m[0] for m in m_id]
+
+                if member.id not in m1:
+                    await ctx.send('Member not tracked.')
+                elif type == 'seen':
+                    await cursor.execute('UPDATE lastseen SET seen = ? WHERE member = ?', (datetime.now(timezone.utc) - delta_time, member.id))
+                elif type == 'ws':
+                    await cursor.execute('UPDATE lastseen SET ws = ? WHERE member = ?', (datetime.now(timezone.utc) - delta_time, member.id))
+                await ctx.send('Member info updated')
 
 def setup(bot):
     bot.add_cog(Utility(bot))
