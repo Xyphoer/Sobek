@@ -544,7 +544,7 @@ If you are interested in leading a White Star, please contact an Officer or ws c
 
         elif not members:
             if ids:
-                embed_guild_roles.add_field(title = 'Guild Roles ids', value = " ".join(role.id for role in ctx.guild.roles))
+                embed_guild_roles = discord.Embed(title = 'Guild Roles ids', description = " ".join(role.id for role in ctx.guild.roles))
 
             else:
                 embed_guild_roles = discord.Embed(title = 'Guild Roles:', description = ' '.join(role.mention for role in ctx.guild.roles), color = ctx.author.top_role.color.value)
@@ -558,7 +558,7 @@ If you are interested in leading a White Star, please contact an Officer or ws c
             await ctx.send(f'Invalid type `{type}`, valid types are:\nseen\nws')
             return
         
-        if track = 'y':
+        if track == 'y':
             track = True
 
         detailed_amount = formats.time_converter(time_ago)
